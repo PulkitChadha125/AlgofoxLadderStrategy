@@ -194,7 +194,7 @@ def fyres_websocket(symbollist):
             message (dict): The received message from the WebSocket.
 
         """
-        print("Response:", message)
+        # print("Response:", message)
         if 'symbol' in message and 'ltp' in message:
             shared_data[message['symbol']] = message['ltp']
 
