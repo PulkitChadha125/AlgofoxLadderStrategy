@@ -193,333 +193,344 @@ def main_strategy():
             timestamp = timestamp.strftime("%d/%m/%Y %H:%M:%S")
             timestamp = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
             if isinstance(symbol_value, str):
-                date_object = datetime.strptime(params['EXPIRY'], '%d-%b-%y')
+                EntryTime = params['START TIME']
+                EntryTime = datetime.strptime(EntryTime, "%H:%M").time()
+                ExitTime = params['STOP TIME']
+                ExitTime = datetime.strptime(ExitTime, "%H:%M").time()
+                current_time = datetime.now().time()
                 symbol_value = params['SYMBOL']
                 expiry_date = datetime.strptime(params['EXPIRY'], '%d-%b-%y').strftime("%y%b").upper()
                 formatted_symbol = f"NSE:{symbol_value}{expiry_date}FUT"
                 ltp = FyresIntegration.shared_data.get(formatted_symbol)
                 # 'UpLevel': None, 'Downlevel': None
-                if ltp is not None and params['InitialLevelRun']is None:
-                    params['ltp']=ltp
-                    params['InitialAtm']=round_to_nearest(params['ltp'],params['STRIKE STEP'])
-                    if params['InitialAtm']> params['ltp'] :
-                        params['UpLevel']=params['InitialAtm']+params['STRIKE STEP']
-                        params['Downlevel'] = params['InitialAtm'] - params['STRIKE STEP']
+                if  current_time.strftime("%H:%M") >= EntryTime.strftime("%H:%M") and current_time.strftime("%H:%M") < ExitTime.strftime("%H:%M") :
+                    if ltp is not None and params['InitialLevelRun']is None:
+                        params['ltp']=ltp
+                        params['InitialAtm']=round_to_nearest(params['ltp'],params['STRIKE STEP'])
+                        if params['InitialAtm']> params['ltp'] :
+                            params['UpLevel']=params['InitialAtm']+params['STRIKE STEP']
+                            params['Downlevel'] = params['InitialAtm'] - params['STRIKE STEP']
+                            Orderlog = f"{timestamp} Symbol : {params['SYMBOL']}, InitialAtm: {params['InitialAtm']}, Uplevel:{params['UpLevel']} ,Downlevel:{params['Downlevel']}"
+                            print(Orderlog)
+                            write_to_order_logs(Orderlog)
 
-                    if params['InitialAtm'] < params['ltp'] :
-                        params['UpLevel'] = params['InitialAtm'] + params['STRIKE STEP']
-                        params['Downlevel'] = params['InitialAtm'] - params['STRIKE STEP']
+                        if params['InitialAtm'] < params['ltp'] :
+                            params['UpLevel'] = params['InitialAtm'] + params['STRIKE STEP']
+                            params['Downlevel'] = params['InitialAtm'] - params['STRIKE STEP']
+                            Orderlog = f"{timestamp} Symbol : {params['SYMBOL']}, InitialAtm: {params['InitialAtm']}, Uplevel:{params['UpLevel']} ,Downlevel:{params['Downlevel']}"
+                            print(Orderlog)
+                            write_to_order_logs(Orderlog)
 
-                    params['callstrike'] = generate_ce_otm_strike_prices(lowest=params['STRIKE_LOWEST'],
-                                                                         highest=params['STRIKE_HIGHEST'],
-                                                                         strike_step=params['STRIKE STEP'],
-                                                                         ltp=params['ltp'])
+                        params['callstrike'] = generate_ce_otm_strike_prices(lowest=params['STRIKE_LOWEST'],
+                                                                             highest=params['STRIKE_HIGHEST'],
+                                                                             strike_step=params['STRIKE STEP'],
+                                                                             ltp=params['ltp'])
 
-                    params['putstrike'] = generate_pe_otm_strike_prices(lowest=params['STRIKE_LOWEST'],
-                                                                        highest=params['STRIKE_HIGHEST'],
-                                                                        strike_step=params['STRIKE STEP'],
-                                                                        ltp=params['ltp'])
-                    if params['TYPE'] == 'SHORT':
-                        trade_exp = datetime.strptime(params['TradeExp'], "%d-%b-%y").strftime("%d%b%Y").upper()
-                        params['trade_exp']=trade_exp
-                        for strike in params['callstrike']:
-                            symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|CE"
-                            Algofox.Short_order_algofox(symbol, quantity=params["Quantity"], instrumentType='OTPIDX',
-                                                        direction='BUY', product='MIS', strategy=params["STRATEGYTAG"],
-                                                        order_typ="MARKET", price=0, username=Algofoxid,
-                                                        password=Algofoxpassword, role=role,
-                                                        trigger=None, sll_price=None)
-
-                        for strike in params['putstrike']:
-                            symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|PE"
-                            Algofox.Short_order_algofox(symbol, quantity=params["Quantity"], instrumentType='OTPIDX',
-                                                        direction='BUY', product='MIS', strategy=params["STRATEGYTAG"],
-                                                        order_typ="MARKET", price=0, username=Algofoxid,
-                                                        password=Algofoxpassword, role=role,
-                                                        trigger=None, sll_price=None)
-
-                    if params['TYPE'] == 'BUY':
-                        trade_exp = datetime.strptime(params['TradeExp'], "%d-%b-%y").strftime("%d%b%Y").upper()
-                        params['trade_exp']=trade_exp
-                        for strike in params['callstrike']:
-                            symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|CE"
-                            Algofox.Buy_order_algofox(symbol, quantity=params["Quantity"],
-                                                      instrumentType='OTPIDX', direction='BUY', product='MIS',
-                                                      strategy=params["STRATEGYTAG"],
-                                                      order_typ="MARKET", price=0, username=Algofoxid,
-                                                      password=Algofoxpassword, role=role,
-                                                      trigger=None, sll_price=None)
-
-                        for strike in params['putstrike']:
-                            symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|PE"
-                            Algofox.Buy_order_algofox(symbol, quantity=params["Quantity"],
-                                                      instrumentType='OTPIDX', direction='BUY', product='MIS',
-                                                      strategy=params["STRATEGYTAG"],
-                                                      order_typ="MARKET", price=0, username=Algofoxid,
-                                                      password=Algofoxpassword, role=role,
-                                                      trigger=None, sll_price=None)
-
-                    Orderlog = f"{timestamp} Initial trade {params['TYPE']} {params['SYMBOL']} for call in strike {params['callstrike']}"
-                    print(Orderlog)
-                    write_to_order_logs(Orderlog)
-                    Orderlog = f"{timestamp} Initial trade {params['TYPE']} {params['SYMBOL']} for put in strike {params['putstrike']}"
-                    print(Orderlog)
-                    write_to_order_logs(Orderlog)
-
-                    params['InitialLevelRun']="DONE"
-
-
-
-
-                    print("callstrike: ",params['callstrike'])
-                    print("putstrike: ", params['putstrike'])
-                    if (
-                            params['ltp']<=params['Downlevel'] and
-                            params['Downlevel'] is not None and
-                            params['InitialLevelRun'] =="DONE"
-                    ):
-                        # opening pos logic
-                        params['UpLevel'] = params['Downlevel'] + params['STRIKE STEP']
-                        params['Downlevel'] = params['Downlevel'] - params['STRIKE STEP']
-                        params['PrevLevel'] = 'DownLevel'
+                        params['putstrike'] = generate_pe_otm_strike_prices(lowest=params['STRIKE_LOWEST'],
+                                                                            highest=params['STRIKE_HIGHEST'],
+                                                                            strike_step=params['STRIKE STEP'],
+                                                                            ltp=params['ltp'])
                         if params['TYPE'] == 'SHORT':
-                            # exit pos logic
-                            strike= max(params['callstrike'])
-                            symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|CE"
-                            Algofox.Cover_order_algofox(symbol, quantity=params["Quantity"],
-                                                          instrumentType='OTPIDX', direction='BUY', product='MIS',
-                                                          strategy=params["STRATEGYTAG"],
-                                                          order_typ="MARKET", price=0, username=Algofoxid,
-                                                          password=Algofoxpassword, role=role,
-                                                          trigger=None, sll_price=None)
-                            params['callstrike'].remove(strike)
-                            Orderlog = f"{timestamp} Downside level @ {params['SYMBOL']} trade: {params['TYPE']} exit call strike  {symbol}"
-                            print(Orderlog)
-                            write_to_order_logs(Orderlog)
-                            # put
-                            strike = max(params['putstrike'])
-                            symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|PE"
-                            Algofox.Cover_order_algofox(symbol, quantity=params["Quantity"],
-                                                       instrumentType='OTPIDX', direction='BUY', product='MIS',
-                                                       strategy=params["STRATEGYTAG"],
-                                                       order_typ="MARKET", price=0, username=Algofoxid,
-                                                       password=Algofoxpassword, role=role,
-                                                       trigger=None, sll_price=None)
-                            params['putstrike'].remove(strike)
+                            trade_exp = datetime.strptime(params['TradeExp'], "%d-%b-%y").strftime("%d%b%Y").upper()
+                            params['trade_exp']=trade_exp
+                            for strike in params['callstrike']:
+                                symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|CE"
+                                Algofox.Short_order_algofox(symbol, quantity=params["Quantity"], instrumentType='OTPIDX',
+                                                            direction='BUY', product='MIS', strategy=params["STRATEGYTAG"],
+                                                            order_typ="MARKET", price=0, username=Algofoxid,
+                                                            password=Algofoxpassword, role=role,
+                                                            trigger=None, sll_price=None)
 
-                            Orderlog = f"{timestamp} Downside level @ {params['SYMBOL']} trade: {params['TYPE']} exit put strike  {symbol}"
-                            print(Orderlog)
-                            write_to_order_logs(Orderlog)
-                            # opening pos logic
-                            lowest_strike = min(params['callstrike'])
-                            new_strike = lowest_strike - params['STRIKE STEP']
-                            params['callstrike'].append(new_strike)
-                            symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{new_strike}|CE"
-                            Algofox.Short_order_algofox(symbol, quantity=params["Quantity"],
-                                                      instrumentType='OTPIDX', direction='BUY', product='MIS',
-                                                      strategy=params["STRATEGYTAG"],
-                                                      order_typ="MARKET", price=0, username=Algofoxid,
-                                                      password=Algofoxpassword, role=role,
-                                                      trigger=None, sll_price=None)
-                            Orderlog = f"{timestamp} Downside level @ {params['SYMBOL']} trade: {params['TYPE']} entry call strike  {symbol}"
-                            print(Orderlog)
-                            write_to_order_logs(Orderlog)
-
-                            lowest_strike = min(params['putstrike'])
-                            new_strike = int(lowest_strike - params['STRIKE STEP'])
-                            params['putstrike'].append(new_strike)
-                            symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{new_strike}|PE"
-                            Algofox.Short_order_algofox(symbol, quantity=params["Quantity"],
-                                                      instrumentType='OTPIDX', direction='BUY', product='MIS',
-                                                      strategy=params["STRATEGYTAG"],
-                                                      order_typ="MARKET", price=0, username=Algofoxid,
-                                                      password=Algofoxpassword, role=role,
-                                                      trigger=None, sll_price=None)
-                            Orderlog = f"{timestamp} Downside level @ {params['SYMBOL']} trade: {params['TYPE']} entry put strike  {symbol}"
-                            print(Orderlog)
-                            write_to_order_logs(Orderlog)
+                            for strike in params['putstrike']:
+                                symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|PE"
+                                Algofox.Short_order_algofox(symbol, quantity=params["Quantity"], instrumentType='OTPIDX',
+                                                            direction='BUY', product='MIS', strategy=params["STRATEGYTAG"],
+                                                            order_typ="MARKET", price=0, username=Algofoxid,
+                                                            password=Algofoxpassword, role=role,
+                                                            trigger=None, sll_price=None)
 
                         if params['TYPE'] == 'BUY':
-                            # exit pos logic
-                            strike= max(params['callstrike'])
-                            symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|CE"
-                            Algofox.Sell_order_algofox(symbol, quantity=params["Quantity"],
+                            trade_exp = datetime.strptime(params['TradeExp'], "%d-%b-%y").strftime("%d%b%Y").upper()
+                            params['trade_exp']=trade_exp
+                            for strike in params['callstrike']:
+                                symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|CE"
+                                Algofox.Buy_order_algofox(symbol, quantity=params["Quantity"],
                                                           instrumentType='OTPIDX', direction='BUY', product='MIS',
                                                           strategy=params["STRATEGYTAG"],
                                                           order_typ="MARKET", price=0, username=Algofoxid,
                                                           password=Algofoxpassword, role=role,
                                                           trigger=None, sll_price=None)
-                            params['callstrike'].remove(strike)
-                            Orderlog = f"{timestamp} Downside level @ {params['SYMBOL']} trade: {params['TYPE']} exit call strike  {symbol}"
-                            print(Orderlog)
-                            write_to_order_logs(Orderlog)
 
-                            strike = max(params['putstrike'])
-                            symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|PE"
-                            Algofox.Sell_order_algofox(symbol, quantity=params["Quantity"],
-                                                       instrumentType='OTPIDX', direction='BUY', product='MIS',
-                                                       strategy=params["STRATEGYTAG"],
-                                                       order_typ="MARKET", price=0, username=Algofoxid,
-                                                       password=Algofoxpassword, role=role,
-                                                       trigger=None, sll_price=None)
-                            params['putstrike'].remove(strike)
-                            Orderlog = f"{timestamp} Downside level @ {params['SYMBOL']} trade: {params['TYPE']} exit put strike  {symbol}"
-                            print(Orderlog)
-                            write_to_order_logs(Orderlog)
-                            # opening pos logic
-                            lowest_strike = min(params['callstrike'])
-                            new_strike = lowest_strike - params['STRIKE STEP']
-                            params['callstrike'].append(new_strike)
-                            symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{new_strike}|CE"
-                            Algofox.Buy_order_algofox(symbol, quantity=params["Quantity"],
-                                                      instrumentType='OTPIDX', direction='BUY', product='MIS',
-                                                      strategy=params["STRATEGYTAG"],
-                                                      order_typ="MARKET", price=0, username=Algofoxid,
-                                                      password=Algofoxpassword, role=role,
-                                                      trigger=None, sll_price=None)
-                            Orderlog = f"{timestamp} Downside level @ {params['SYMBOL']} trade: {params['TYPE']} entry call strike  {symbol}"
-                            print(Orderlog)
-                            write_to_order_logs(Orderlog)
-                            lowest_strike = min(params['putstrike'])
-                            new_strike = int(lowest_strike - params['STRIKE STEP'])
-                            params['putstrike'].append(new_strike)
-                            symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{new_strike}|PE"
-                            Algofox.Buy_order_algofox(symbol, quantity=params["Quantity"],
-                                                      instrumentType='OTPIDX', direction='BUY', product='MIS',
-                                                      strategy=params["STRATEGYTAG"],
-                                                      order_typ="MARKET", price=0, username=Algofoxid,
-                                                      password=Algofoxpassword, role=role,
-                                                      trigger=None, sll_price=None)
-                            Orderlog = f"{timestamp} Downside level @ {params['SYMBOL']} trade: {params['TYPE']} entry put strike  {symbol}"
-                            print(Orderlog)
-                            write_to_order_logs(Orderlog)
+                            for strike in params['putstrike']:
+                                symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|PE"
+                                Algofox.Buy_order_algofox(symbol, quantity=params["Quantity"],
+                                                          instrumentType='OTPIDX', direction='BUY', product='MIS',
+                                                          strategy=params["STRATEGYTAG"],
+                                                          order_typ="MARKET", price=0, username=Algofoxid,
+                                                          password=Algofoxpassword, role=role,
+                                                          trigger=None, sll_price=None)
 
-                    if (
-                        params['ltp']>=params['UpLevel'] and
-                        params['UpLevel'] is not None and
-                        params['InitialLevelRun'] is not None
+                        Orderlog = f"{timestamp} Initial trade {params['TYPE']} {params['SYMBOL']} for call in strike {params['callstrike']}"
+                        print(Orderlog)
+                        write_to_order_logs(Orderlog)
+                        Orderlog = f"{timestamp} Initial trade {params['TYPE']} {params['SYMBOL']} for put in strike {params['putstrike']}"
+                        print(Orderlog)
+                        write_to_order_logs(Orderlog)
+
+                        params['InitialLevelRun']="DONE"
+
+
+
+
+                        print("callstrike: ",params['callstrike'])
+                        print("putstrike: ", params['putstrike'])
+                        if (
+                                params['ltp']<=params['Downlevel'] and
+                                params['Downlevel'] is not None and
+                                params['InitialLevelRun'] =="DONE"
                         ):
-
-                        params['Downlevel'] = params['UpLevel'] - params['STRIKE STEP']
-                        params['UpLevel'] = params['UpLevel'] + params['STRIKE STEP']
-                        params['PrevLevel']='UpLevel'
-                        if params['TYPE'] == 'SHORT':
-                            # exit pos logic
-                            strike = min(params['callstrike'])
-                            symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|CE"
-                            Algofox.Cover_order_algofox(symbol, quantity=params["Quantity"],
-                                                       instrumentType='OTPIDX', direction='BUY', product='MIS',
-                                                       strategy=params["STRATEGYTAG"],
-                                                       order_typ="MARKET", price=0, username=Algofoxid,
-                                                       password=Algofoxpassword, role=role,
-                                                       trigger=None, sll_price=None)
-                            params['callstrike'].remove(strike)
-                            Orderlog = f"{timestamp} Upside level @ {params['SYMBOL']} trade: {params['TYPE']} exit call strike  {symbol}"
-                            print(Orderlog)
-                            write_to_order_logs(Orderlog)
-
-                            strike = min(params['putstrike'])
-                            symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|PE"
-                            Algofox.Cover_order_algofox(symbol, quantity=params["Quantity"],
-                                                       instrumentType='OTPIDX', direction='BUY', product='MIS',
-                                                       strategy=params["STRATEGYTAG"],
-                                                       order_typ="MARKET", price=0, username=Algofoxid,
-                                                       password=Algofoxpassword, role=role,
-                                                       trigger=None, sll_price=None)
-                            params['putstrike'].remove(strike)
-                            Orderlog = f"{timestamp} Upside level @ {params['SYMBOL']} trade: {params['TYPE']} exit put strike  {symbol}"
-                            print(Orderlog)
-                            write_to_order_logs(Orderlog)
                             # opening pos logic
-                            highest_strike = max(params['callstrike'])
-                            new_strike = highest_strike + params['STRIKE STEP']
-                            params['callstrike'].append(new_strike)
-                            symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{new_strike}|CE"
-                            Algofox.Short_order_algofox(symbol, quantity=params["Quantity"],
-                                                      instrumentType='OTPIDX', direction='BUY', product='MIS',
-                                                      strategy=params["STRATEGYTAG"],
-                                                      order_typ="MARKET", price=0, username=Algofoxid,
-                                                      password=Algofoxpassword, role=role,
-                                                      trigger=None, sll_price=None)
-                            Orderlog = f"{timestamp} Upside level @ {params['SYMBOL']} trade: {params['TYPE']} entry call strike  {symbol}"
-                            print(Orderlog)
-                            write_to_order_logs(Orderlog)
+                            params['UpLevel'] = params['Downlevel'] + params['STRIKE STEP']
+                            params['Downlevel'] = params['Downlevel'] - params['STRIKE STEP']
+                            params['PrevLevel'] = 'DownLevel'
+                            if params['TYPE'] == 'SHORT':
+                                # exit pos logic
+                                strike= max(params['callstrike'])
+                                symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|CE"
+                                Algofox.Cover_order_algofox(symbol, quantity=params["Quantity"],
+                                                              instrumentType='OTPIDX', direction='BUY', product='MIS',
+                                                              strategy=params["STRATEGYTAG"],
+                                                              order_typ="MARKET", price=0, username=Algofoxid,
+                                                              password=Algofoxpassword, role=role,
+                                                              trigger=None, sll_price=None)
+                                params['callstrike'].remove(strike)
+                                Orderlog = f"{timestamp} Downside level @ {params['SYMBOL']} trade: {params['TYPE']} exit call strike  {symbol}"
+                                print(Orderlog)
+                                write_to_order_logs(Orderlog)
+                                # put
+                                strike = max(params['putstrike'])
+                                symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|PE"
+                                Algofox.Cover_order_algofox(symbol, quantity=params["Quantity"],
+                                                           instrumentType='OTPIDX', direction='BUY', product='MIS',
+                                                           strategy=params["STRATEGYTAG"],
+                                                           order_typ="MARKET", price=0, username=Algofoxid,
+                                                           password=Algofoxpassword, role=role,
+                                                           trigger=None, sll_price=None)
+                                params['putstrike'].remove(strike)
 
-                            highest_strike = max(params['putstrike'])
-                            new_strike = int(highest_strike + params['STRIKE STEP'])
-                            params['putstrike'].append(new_strike)
-                            symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{new_strike}|PE"
-                            Algofox.Short_order_algofox(symbol, quantity=params["Quantity"],
-                                                      instrumentType='OTPIDX', direction='BUY', product='MIS',
-                                                      strategy=params["STRATEGYTAG"],
-                                                      order_typ="MARKET", price=0, username=Algofoxid,
-                                                      password=Algofoxpassword, role=role,
-                                                      trigger=None, sll_price=None)
-                            Orderlog = f"{timestamp} Upside level @ {params['SYMBOL']} trade: {params['TYPE']} entry put strike  {symbol}"
-                            print(Orderlog)
-                            write_to_order_logs(Orderlog)
-
-                        if params['TYPE'] == 'BUY':
-                            # exit pos logic
-                            strike= min(params['callstrike'])
-                            symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|CE"
-                            Algofox.Sell_order_algofox(symbol, quantity=params["Quantity"],
+                                Orderlog = f"{timestamp} Downside level @ {params['SYMBOL']} trade: {params['TYPE']} exit put strike  {symbol}"
+                                print(Orderlog)
+                                write_to_order_logs(Orderlog)
+                                # opening pos logic
+                                lowest_strike = min(params['callstrike'])
+                                new_strike = lowest_strike - params['STRIKE STEP']
+                                params['callstrike'].append(new_strike)
+                                symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{new_strike}|CE"
+                                Algofox.Short_order_algofox(symbol, quantity=params["Quantity"],
                                                           instrumentType='OTPIDX', direction='BUY', product='MIS',
                                                           strategy=params["STRATEGYTAG"],
                                                           order_typ="MARKET", price=0, username=Algofoxid,
                                                           password=Algofoxpassword, role=role,
                                                           trigger=None, sll_price=None)
-                            params['callstrike'].remove(strike)
-                            Orderlog = f"{timestamp} Upside level @ {params['SYMBOL']} trade: {params['TYPE']} exit call strike  {symbol}"
-                            print(Orderlog)
-                            write_to_order_logs(Orderlog)
+                                Orderlog = f"{timestamp} Downside level @ {params['SYMBOL']} trade: {params['TYPE']} entry call strike  {symbol}"
+                                print(Orderlog)
+                                write_to_order_logs(Orderlog)
 
-                            strike = min(params['putstrike'])
-                            symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|PE"
-                            Algofox.Sell_order_algofox(symbol, quantity=params["Quantity"],
-                                                       instrumentType='OTPIDX', direction='BUY', product='MIS',
-                                                       strategy=params["STRATEGYTAG"],
-                                                       order_typ="MARKET", price=0, username=Algofoxid,
-                                                       password=Algofoxpassword, role=role,
-                                                       trigger=None, sll_price=None)
-                            params['putstrike'].remove(strike)
-                            Orderlog = f"{timestamp} Upside level @ {params['SYMBOL']} trade: {params['TYPE']} exit put strike  {symbol}"
-                            print(Orderlog)
-                            write_to_order_logs(Orderlog)
-                            # opening pos logic
-                            highest_strike = max(params['callstrike'])
-                            new_strike = highest_strike + params['STRIKE STEP']
-                            params['callstrike'].append(new_strike)
-                            symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{new_strike}|CE"
-                            Algofox.Buy_order_algofox(symbol, quantity=params["Quantity"],
-                                                      instrumentType='OTPIDX', direction='BUY', product='MIS',
-                                                      strategy=params["STRATEGYTAG"],
-                                                      order_typ="MARKET", price=0, username=Algofoxid,
-                                                      password=Algofoxpassword, role=role,
-                                                      trigger=None, sll_price=None)
-                            Orderlog = f"{timestamp} Upside level @ {params['SYMBOL']} trade: {params['TYPE']} entry call strike  {symbol}"
-                            print(Orderlog)
-                            write_to_order_logs(Orderlog)
+                                lowest_strike = min(params['putstrike'])
+                                new_strike = int(lowest_strike - params['STRIKE STEP'])
+                                params['putstrike'].append(new_strike)
+                                symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{new_strike}|PE"
+                                Algofox.Short_order_algofox(symbol, quantity=params["Quantity"],
+                                                          instrumentType='OTPIDX', direction='BUY', product='MIS',
+                                                          strategy=params["STRATEGYTAG"],
+                                                          order_typ="MARKET", price=0, username=Algofoxid,
+                                                          password=Algofoxpassword, role=role,
+                                                          trigger=None, sll_price=None)
+                                Orderlog = f"{timestamp} Downside level @ {params['SYMBOL']} trade: {params['TYPE']} entry put strike  {symbol}"
+                                print(Orderlog)
+                                write_to_order_logs(Orderlog)
 
-                            highest_strike = max(params['putstrike'])
-                            new_strike = int(highest_strike + params['STRIKE STEP'])
-                            params['putstrike'].append(new_strike)
-                            symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{new_strike}|PE"
-                            Algofox.Buy_order_algofox(symbol, quantity=params["Quantity"],
-                                                      instrumentType='OTPIDX', direction='BUY', product='MIS',
-                                                      strategy=params["STRATEGYTAG"],
-                                                      order_typ="MARKET", price=0, username=Algofoxid,
-                                                      password=Algofoxpassword, role=role,
-                                                      trigger=None, sll_price=None)
-                            Orderlog = f"{timestamp} Upside level @ {params['SYMBOL']} trade: {params['TYPE']} entry put strike  {symbol}"
-                            print(Orderlog)
-                            write_to_order_logs(Orderlog)
+                            if params['TYPE'] == 'BUY':
+                                # exit pos logic
+                                strike= max(params['callstrike'])
+                                symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|CE"
+                                Algofox.Sell_order_algofox(symbol, quantity=params["Quantity"],
+                                                              instrumentType='OTPIDX', direction='BUY', product='MIS',
+                                                              strategy=params["STRATEGYTAG"],
+                                                              order_typ="MARKET", price=0, username=Algofoxid,
+                                                              password=Algofoxpassword, role=role,
+                                                              trigger=None, sll_price=None)
+                                params['callstrike'].remove(strike)
+                                Orderlog = f"{timestamp} Downside level @ {params['SYMBOL']} trade: {params['TYPE']} exit call strike  {symbol}"
+                                print(Orderlog)
+                                write_to_order_logs(Orderlog)
+
+                                strike = max(params['putstrike'])
+                                symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|PE"
+                                Algofox.Sell_order_algofox(symbol, quantity=params["Quantity"],
+                                                           instrumentType='OTPIDX', direction='BUY', product='MIS',
+                                                           strategy=params["STRATEGYTAG"],
+                                                           order_typ="MARKET", price=0, username=Algofoxid,
+                                                           password=Algofoxpassword, role=role,
+                                                           trigger=None, sll_price=None)
+                                params['putstrike'].remove(strike)
+                                Orderlog = f"{timestamp} Downside level @ {params['SYMBOL']} trade: {params['TYPE']} exit put strike  {symbol}"
+                                print(Orderlog)
+                                write_to_order_logs(Orderlog)
+                                # opening pos logic
+                                lowest_strike = min(params['callstrike'])
+                                new_strike = lowest_strike - params['STRIKE STEP']
+                                params['callstrike'].append(new_strike)
+                                symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{new_strike}|CE"
+                                Algofox.Buy_order_algofox(symbol, quantity=params["Quantity"],
+                                                          instrumentType='OTPIDX', direction='BUY', product='MIS',
+                                                          strategy=params["STRATEGYTAG"],
+                                                          order_typ="MARKET", price=0, username=Algofoxid,
+                                                          password=Algofoxpassword, role=role,
+                                                          trigger=None, sll_price=None)
+                                Orderlog = f"{timestamp} Downside level @ {params['SYMBOL']} trade: {params['TYPE']} entry call strike  {symbol}"
+                                print(Orderlog)
+                                write_to_order_logs(Orderlog)
+                                lowest_strike = min(params['putstrike'])
+                                new_strike = int(lowest_strike - params['STRIKE STEP'])
+                                params['putstrike'].append(new_strike)
+                                symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{new_strike}|PE"
+                                Algofox.Buy_order_algofox(symbol, quantity=params["Quantity"],
+                                                          instrumentType='OTPIDX', direction='BUY', product='MIS',
+                                                          strategy=params["STRATEGYTAG"],
+                                                          order_typ="MARKET", price=0, username=Algofoxid,
+                                                          password=Algofoxpassword, role=role,
+                                                          trigger=None, sll_price=None)
+                                Orderlog = f"{timestamp} Downside level @ {params['SYMBOL']} trade: {params['TYPE']} entry put strike  {symbol}"
+                                print(Orderlog)
+                                write_to_order_logs(Orderlog)
+
+                        if (
+                            params['ltp']>=params['UpLevel'] and
+                            params['UpLevel'] is not None and
+                            params['InitialLevelRun'] is not None
+                            ):
+
+                            params['Downlevel'] = params['UpLevel'] - params['STRIKE STEP']
+                            params['UpLevel'] = params['UpLevel'] + params['STRIKE STEP']
+                            params['PrevLevel']='UpLevel'
+                            if params['TYPE'] == 'SHORT':
+                                # exit pos logic
+                                strike = min(params['callstrike'])
+                                symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|CE"
+                                Algofox.Cover_order_algofox(symbol, quantity=params["Quantity"],
+                                                           instrumentType='OTPIDX', direction='BUY', product='MIS',
+                                                           strategy=params["STRATEGYTAG"],
+                                                           order_typ="MARKET", price=0, username=Algofoxid,
+                                                           password=Algofoxpassword, role=role,
+                                                           trigger=None, sll_price=None)
+                                params['callstrike'].remove(strike)
+                                Orderlog = f"{timestamp} Upside level @ {params['SYMBOL']} trade: {params['TYPE']} exit call strike  {symbol}"
+                                print(Orderlog)
+                                write_to_order_logs(Orderlog)
+
+                                strike = min(params['putstrike'])
+                                symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|PE"
+                                Algofox.Cover_order_algofox(symbol, quantity=params["Quantity"],
+                                                           instrumentType='OTPIDX', direction='BUY', product='MIS',
+                                                           strategy=params["STRATEGYTAG"],
+                                                           order_typ="MARKET", price=0, username=Algofoxid,
+                                                           password=Algofoxpassword, role=role,
+                                                           trigger=None, sll_price=None)
+                                params['putstrike'].remove(strike)
+                                Orderlog = f"{timestamp} Upside level @ {params['SYMBOL']} trade: {params['TYPE']} exit put strike  {symbol}"
+                                print(Orderlog)
+                                write_to_order_logs(Orderlog)
+                                # opening pos logic
+                                highest_strike = max(params['callstrike'])
+                                new_strike = highest_strike + params['STRIKE STEP']
+                                params['callstrike'].append(new_strike)
+                                symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{new_strike}|CE"
+                                Algofox.Short_order_algofox(symbol, quantity=params["Quantity"],
+                                                          instrumentType='OTPIDX', direction='BUY', product='MIS',
+                                                          strategy=params["STRATEGYTAG"],
+                                                          order_typ="MARKET", price=0, username=Algofoxid,
+                                                          password=Algofoxpassword, role=role,
+                                                          trigger=None, sll_price=None)
+                                Orderlog = f"{timestamp} Upside level @ {params['SYMBOL']} trade: {params['TYPE']} entry call strike  {symbol}"
+                                print(Orderlog)
+                                write_to_order_logs(Orderlog)
+
+                                highest_strike = max(params['putstrike'])
+                                new_strike = int(highest_strike + params['STRIKE STEP'])
+                                params['putstrike'].append(new_strike)
+                                symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{new_strike}|PE"
+                                Algofox.Short_order_algofox(symbol, quantity=params["Quantity"],
+                                                          instrumentType='OTPIDX', direction='BUY', product='MIS',
+                                                          strategy=params["STRATEGYTAG"],
+                                                          order_typ="MARKET", price=0, username=Algofoxid,
+                                                          password=Algofoxpassword, role=role,
+                                                          trigger=None, sll_price=None)
+                                Orderlog = f"{timestamp} Upside level @ {params['SYMBOL']} trade: {params['TYPE']} entry put strike  {symbol}"
+                                print(Orderlog)
+                                write_to_order_logs(Orderlog)
+
+                            if params['TYPE'] == 'BUY':
+                                # exit pos logic
+                                strike= min(params['callstrike'])
+                                symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|CE"
+                                Algofox.Sell_order_algofox(symbol, quantity=params["Quantity"],
+                                                              instrumentType='OTPIDX', direction='BUY', product='MIS',
+                                                              strategy=params["STRATEGYTAG"],
+                                                              order_typ="MARKET", price=0, username=Algofoxid,
+                                                              password=Algofoxpassword, role=role,
+                                                              trigger=None, sll_price=None)
+                                params['callstrike'].remove(strike)
+                                Orderlog = f"{timestamp} Upside level @ {params['SYMBOL']} trade: {params['TYPE']} exit call strike  {symbol}"
+                                print(Orderlog)
+                                write_to_order_logs(Orderlog)
+
+                                strike = min(params['putstrike'])
+                                symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|PE"
+                                Algofox.Sell_order_algofox(symbol, quantity=params["Quantity"],
+                                                           instrumentType='OTPIDX', direction='BUY', product='MIS',
+                                                           strategy=params["STRATEGYTAG"],
+                                                           order_typ="MARKET", price=0, username=Algofoxid,
+                                                           password=Algofoxpassword, role=role,
+                                                           trigger=None, sll_price=None)
+                                params['putstrike'].remove(strike)
+                                Orderlog = f"{timestamp} Upside level @ {params['SYMBOL']} trade: {params['TYPE']} exit put strike  {symbol}"
+                                print(Orderlog)
+                                write_to_order_logs(Orderlog)
+                                # opening pos logic
+                                highest_strike = max(params['callstrike'])
+                                new_strike = highest_strike + params['STRIKE STEP']
+                                params['callstrike'].append(new_strike)
+                                symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{new_strike}|CE"
+                                Algofox.Buy_order_algofox(symbol, quantity=params["Quantity"],
+                                                          instrumentType='OTPIDX', direction='BUY', product='MIS',
+                                                          strategy=params["STRATEGYTAG"],
+                                                          order_typ="MARKET", price=0, username=Algofoxid,
+                                                          password=Algofoxpassword, role=role,
+                                                          trigger=None, sll_price=None)
+                                Orderlog = f"{timestamp} Upside level @ {params['SYMBOL']} trade: {params['TYPE']} entry call strike  {symbol}"
+                                print(Orderlog)
+                                write_to_order_logs(Orderlog)
+
+                                highest_strike = max(params['putstrike'])
+                                new_strike = int(highest_strike + params['STRIKE STEP'])
+                                params['putstrike'].append(new_strike)
+                                symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{new_strike}|PE"
+                                Algofox.Buy_order_algofox(symbol, quantity=params["Quantity"],
+                                                          instrumentType='OTPIDX', direction='BUY', product='MIS',
+                                                          strategy=params["STRATEGYTAG"],
+                                                          order_typ="MARKET", price=0, username=Algofoxid,
+                                                          password=Algofoxpassword, role=role,
+                                                          trigger=None, sll_price=None)
+                                Orderlog = f"{timestamp} Upside level @ {params['SYMBOL']} trade: {params['TYPE']} entry put strike  {symbol}"
+                                print(Orderlog)
+                                write_to_order_logs(Orderlog)
 
 
 
 
-                print(f"{params['SYMBOL']}: {ltp} : InitialAtm: {params['InitialAtm']}: UpLevel: {params['UpLevel']}: Downlevel: {params['Downlevel']},"
-                      f"InitialLevelRun:{params['InitialLevelRun']}, callstrike: {params['callstrike']}, putstrike: {params['putstrike']}")
+                    print(f"{timestamp} {params['SYMBOL']}: {ltp} : InitialAtm: {params['InitialAtm']}: UpLevel: {params['UpLevel']}: Downlevel: {params['Downlevel']},"
+                          f"InitialLevelRun:{params['InitialLevelRun']}, callstrike: {params['callstrike']}, putstrike: {params['putstrike']}")
 
 
     except Exception as e:
