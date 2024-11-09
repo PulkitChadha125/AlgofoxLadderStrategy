@@ -133,12 +133,18 @@ state = credentials_dict.get('state')
 TOTP_KEY = credentials_dict.get('totpkey')
 FY_ID = credentials_dict.get('FY_ID')
 PIN = credentials_dict.get('PIN')
-
 Algofoxid = credentials_dict.get('Algofoxid')
 Algofoxpassword = credentials_dict.get('Algofoxpassword')
 role = credentials_dict.get('role')
 url=credentials_dict.get('algofoxurl')
 Algofox.createurl(url)
+
+print("client_id: ",client_id)
+print("redirect_uri: ",redirect_uri)
+print("FY_ID: ",FY_ID)
+print("TOTP_KEY: ",TOTP_KEY)
+print("PIN: ",PIN)
+print("secret_key: ",secret_key)
 
 # Automated login and initialization steps
 FyresIntegration.automated_login(client_id=client_id, redirect_uri=redirect_uri, secret_key=secret_key, FY_ID=FY_ID,
@@ -152,23 +158,30 @@ if loginresult!=200:
     print("Algofoz credential wrong, shutdown down Trde Copier, please provide correct details and run again otherwise program will not work correctly ...")
     time.sleep(10000)
 
-def createwebsocket():
+
+def create_websocket():
     global result_dict
     symbol_list = []
 
     for key, value in result_dict.items():
-        if 'SYMBOL' in value and 'EXPIRY' in value:
+        if 'SYMBOL' in value and 'Mode' in value:
             symbol = value['SYMBOL']
-            expiry_date = value['EXPIRY']
-            expiry_key_date = datetime.strptime(expiry_date, "%d-%b-%y").strftime("%y%b").upper()
-            formatted_symbol = f"NSE:{symbol}{expiry_key_date}FUT"
+
+            if value['Mode'] == 'FUTURE' and 'EXPIRY' in value:
+                expiry_date = value['EXPIRY']
+                expiry_key_date = datetime.strptime(expiry_date, "%d-%b-%y").strftime("%y%b").upper()
+                formatted_symbol = f"NSE:{symbol}{expiry_key_date}FUT"
+            elif value['Mode'] == 'SPOT':
+                formatted_symbol = f"NSE:{symbol}"
+            else:
+                continue  # Skip if 'Mode' is neither 'Future' nor 'SPOT'
+
             symbol_list.append(formatted_symbol)
 
-    FyresIntegration. fyres_websocket(symbol_list)
+    FyresIntegration.fyres_websocket(symbol_list)
+    print("symbol_list:", symbol_list)
 
-    print("symbol_list: ",symbol_list)
-
-createwebsocket()
+create_websocket()
 
 
 def generate_ce_otm_strike_prices(lowest, highest, strike_step, ltp):

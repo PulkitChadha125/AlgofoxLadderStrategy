@@ -1,3 +1,0 @@
-08/11/2024 12:45:01 Symbol : NIFTY, InitialAtm: 24250, Uplevel:24300 ,Downlevel:24200
-08/11/2024 12:45:01 Initial trade SHORT NIFTY for call in strike [24200, 24250, 24300]
-08/11/2024 12:45:01 Initial trade SHORT NIFTY for put in strike [24200, 24150, 24100]
