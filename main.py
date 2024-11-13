@@ -66,7 +66,7 @@ def get_user_settings():
                 'START TIME':row['START TIME'],'STOP TIME':row['STOP TIME'],'TGT':row['TGT'],'SL':row['SL'],
                 'STRIKE STEP':row['STRIKE STEP'],'STRATEGYTAG':row['STRATEGYTAG'],'Mode':row['Mode'],'TradeExp':row['TradeExp'],
                 'InitialAtm': None,'UpLevel': None,'Downlevel': None,'InitialLevelRun':None,'ltp':None,'PrevLevel':None,'First':None,
-                'callstrike':None,'putstrike':None,'trade_exp':None
+                'callstrike':None,'putstrike':None,'trade_exp':None,'CycleCount':row['CycleCount'],'TradeCount':0,
             }
             result_dict[row['SYMBOL']] = symbol_dict
         print("result_dict: ", result_dict)
@@ -90,37 +90,75 @@ def get_api_credentials():
         print("An error occurred while reading the CSV file:", str(e))
 
     return credentials
+import requests
+import pandas as pd
 
-
-def symbols():
-    url = "https://public.fyers.in/sym_details/NSE_FO_sym_master.json"
+def download_symbols(url, filename):
     response = requests.get(url)
     data = response.json()
     df = pd.DataFrame.from_dict(data, orient='index')
     column_mapping = {
         "lastUpdate": "lastUpdate", "exSymbol": "exSymbol", "qtyMultiplier": "qtyMultiplier",
-        "previousClose": "previousClose",
-        "exchange": "exchange", "exSeries": "exSeries", "optType": "optType", "mtf_margin": "mtf_margin",
-        "is_mtf_tradable": "is_mtf_tradable",
-        "exSymName": "exSymName", "symTicker": "symTicker", "exInstType": "exInstType", "fyToken": "fyToken",
-        "upperPrice": "upperPrice",
-        "lowerPrice": "lowerPrice", "segment": "segment", "symbolDesc": "symbolDesc", "symDetails": "symDetails",
-        "exToken": "exToken",
-        "strikePrice": "strikePrice", "minLotSize": "minLotSize", "underFyTok": "underFyTok",
-        "currencyCode": "currencyCode", "underSym": "underSym", "expiryDate": "expiryDate",
-        "tradingSession": "tradingSession", "asmGsmVal": "asmGsmVal", "faceValue": "faceValue", "tickSize": "tickSize",
-        "exchangeName": "exchangeName",
-        "originalExpDate": "originalExpDate", "isin": "isin", "tradeStatus": "tradeStatus", "qtyFreeze": "qtyFreeze",
-        "previousOi": "previousOi",
-        "fetchHistory": None
+        "previousClose": "previousClose", "exchange": "exchange", "exSeries": "exSeries",
+        "optType": "optType", "mtf_margin": "mtf_margin", "is_mtf_tradable": "is_mtf_tradable",
+        "exSymName": "exSymName", "symTicker": "symTicker", "exInstType": "exInstType",
+        "fyToken": "fyToken", "upperPrice": "upperPrice", "lowerPrice": "lowerPrice",
+        "segment": "segment", "symbolDesc": "symbolDesc", "symDetails": "symDetails",
+        "exToken": "exToken", "strikePrice": "strikePrice", "minLotSize": "minLotSize",
+        "underFyTok": "underFyTok", "currencyCode": "currencyCode", "underSym": "underSym",
+        "expiryDate": "expiryDate", "tradingSession": "tradingSession", "asmGsmVal": "asmGsmVal",
+        "faceValue": "faceValue", "tickSize": "tickSize", "exchangeName": "exchangeName",
+        "originalExpDate": "originalExpDate", "isin": "isin", "tradeStatus": "tradeStatus",
+        "qtyFreeze": "qtyFreeze", "previousOi": "previousOi", "fetchHistory": None
     }
     df.rename(columns=column_mapping, inplace=True)
     for col in column_mapping.values():
         if col not in df.columns:
             df[col] = None
-    csv_file = 'Instrument.csv'
-    df.to_csv(csv_file, index=False)
-    print(f'Fno data has been successfully written to {csv_file}')
+    df.to_csv(filename, index=False)
+    print(f'Data successfully written to {filename}')
+
+# Define the URLs and corresponding filenames
+links = {
+    "NSE_FO": "https://public.fyers.in/sym_details/NSE_FO_sym_master.json",
+    "NSE_CM": "https://public.fyers.in/sym_details/NSE_CM_sym_master.json",
+    "MCX_COM": "https://public.fyers.in/sym_details/MCX_COM_sym_master.json"
+}
+
+for name, url in links.items():
+    filename = f"{name}_Instrument.csv"
+    download_symbols(url, filename)
+
+
+# def symbols():
+#     url = "https://public.fyers.in/sym_details/NSE_FO_sym_master.json"
+#     response = requests.get(url)
+#     data = response.json()
+#     df = pd.DataFrame.from_dict(data, orient='index')
+#     column_mapping = {
+#         "lastUpdate": "lastUpdate", "exSymbol": "exSymbol", "qtyMultiplier": "qtyMultiplier",
+#         "previousClose": "previousClose",
+#         "exchange": "exchange", "exSeries": "exSeries", "optType": "optType", "mtf_margin": "mtf_margin",
+#         "is_mtf_tradable": "is_mtf_tradable",
+#         "exSymName": "exSymName", "symTicker": "symTicker", "exInstType": "exInstType", "fyToken": "fyToken",
+#         "upperPrice": "upperPrice",
+#         "lowerPrice": "lowerPrice", "segment": "segment", "symbolDesc": "symbolDesc", "symDetails": "symDetails",
+#         "exToken": "exToken",
+#         "strikePrice": "strikePrice", "minLotSize": "minLotSize", "underFyTok": "underFyTok",
+#         "currencyCode": "currencyCode", "underSym": "underSym", "expiryDate": "expiryDate",
+#         "tradingSession": "tradingSession", "asmGsmVal": "asmGsmVal", "faceValue": "faceValue", "tickSize": "tickSize",
+#         "exchangeName": "exchangeName",
+#         "originalExpDate": "originalExpDate", "isin": "isin", "tradeStatus": "tradeStatus", "qtyFreeze": "qtyFreeze",
+#         "previousOi": "previousOi",
+#         "fetchHistory": None
+#     }
+#     df.rename(columns=column_mapping, inplace=True)
+#     for col in column_mapping.values():
+#         if col not in df.columns:
+#             df[col] = None
+#     csv_file = 'Instrument.csv'
+#     df.to_csv(csv_file, index=False)
+#     print(f'Fno data has been successfully written to {csv_file}')
 
 get_user_settings()
 credentials_dict = get_api_credentials()
@@ -149,7 +187,7 @@ print("secret_key: ",secret_key)
 # Automated login and initialization steps
 FyresIntegration.automated_login(client_id=client_id, redirect_uri=redirect_uri, secret_key=secret_key, FY_ID=FY_ID,
                                      PIN=PIN, TOTP_KEY=TOTP_KEY)
-symbols()
+
 
 loginresult=Algofox.login_algpfox(username=Algofoxid, password=Algofoxpassword, role=role)
 
@@ -160,9 +198,9 @@ if loginresult!=200:
 
 
 def create_websocket():
+    # MCX:CRUDEOIL20OCTFUT,NSE:NIFTY20OCTFUT,
     global result_dict
     symbol_list = []
-
     for key, value in result_dict.items():
         if 'SYMBOL' in value and 'Mode' in value:
             symbol = value['SYMBOL']
@@ -173,6 +211,10 @@ def create_websocket():
                 formatted_symbol = f"NSE:{symbol}{expiry_key_date}FUT"
             elif value['Mode'] == 'SPOT':
                 formatted_symbol = f"NSE:{symbol}"
+            elif value['Mode'] == 'MCX':
+                expiry_date = value['EXPIRY']
+                expiry_key_date = datetime.strptime(expiry_date, "%d-%b-%y").strftime("%y%b").upper()
+                formatted_symbol = f"MCX:{symbol}{expiry_key_date}FUT"
             else:
                 continue  # Skip if 'Mode' is neither 'Future' nor 'SPOT'
 
@@ -180,6 +222,7 @@ def create_websocket():
 
     FyresIntegration.fyres_websocket(symbol_list)
     print("symbol_list:", symbol_list)
+    print("Web Socket created...")
 
 create_websocket()
 
@@ -215,7 +258,7 @@ def main_strategy():
                 expiry_date = datetime.strptime(params['EXPIRY'], '%d-%b-%y').strftime("%y%b").upper()
                 formatted_symbol = f"NSE:{symbol_value}{expiry_date}FUT"
                 ltp = FyresIntegration.shared_data.get(formatted_symbol)
-                # 'UpLevel': None, 'Downlevel': None
+                # 'CycleCount':row['CycleCount'],'TradeCount':0,
                 if  current_time.strftime("%H:%M") >= EntryTime.strftime("%H:%M") and current_time.strftime("%H:%M") < ExitTime.strftime("%H:%M") :
                     if ltp is not None and params['InitialLevelRun']is None:
                         params['ltp']=ltp
@@ -283,6 +326,8 @@ def main_strategy():
                                                           password=Algofoxpassword, role=role,
                                                           trigger=None, sll_price=None)
 
+                        params['TradeCount']= params['TradeCount']+1
+
                         Orderlog = f"{timestamp} Initial trade {params['TYPE']} {params['SYMBOL']} for call in strike {params['callstrike']}"
                         print(Orderlog)
                         write_to_order_logs(Orderlog)
@@ -300,12 +345,14 @@ def main_strategy():
                         if (
                                 params['ltp']<=params['Downlevel'] and
                                 params['Downlevel'] is not None and
-                                params['InitialLevelRun'] =="DONE"
+                                params['InitialLevelRun'] =="DONE" and
+                                params['TradeCount'] <= params['CycleCount']
                         ):
                             # opening pos logic
                             params['UpLevel'] = params['Downlevel'] + params['STRIKE STEP']
                             params['Downlevel'] = params['Downlevel'] - params['STRIKE STEP']
                             params['PrevLevel'] = 'DownLevel'
+                            params['TradeCount'] = params['TradeCount'] + 1
                             if params['TYPE'] == 'SHORT':
                                 # exit pos logic
                                 strike= max(params['callstrike'])
@@ -419,14 +466,16 @@ def main_strategy():
                                 write_to_order_logs(Orderlog)
 
                         if (
-                            params['ltp']>=params['UpLevel'] and
-                            params['UpLevel'] is not None and
-                            params['InitialLevelRun'] is not None
+                                params['ltp']>=params['UpLevel'] and
+                                params['UpLevel'] is not None and
+                                params['InitialLevelRun'] is not None and
+                                params['TradeCount']<=params['CycleCount']
                             ):
 
                             params['Downlevel'] = params['UpLevel'] - params['STRIKE STEP']
                             params['UpLevel'] = params['UpLevel'] + params['STRIKE STEP']
                             params['PrevLevel']='UpLevel'
+                            params['TradeCount'] = params['TradeCount'] + 1
                             if params['TYPE'] == 'SHORT':
                                 # exit pos logic
                                 strike = min(params['callstrike'])
