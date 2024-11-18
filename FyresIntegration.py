@@ -256,23 +256,20 @@ def fyres_websocket(symbollist):
     # Establish a connection to the Fyers WebSocket
     fyers.connect()
 
-def fyres_quote(symbol):
-    data = {
-        "symbols": f"{symbol}"
-    }
 
-    response = fyers.quotes(data=data)
-    return response
+def fyres_quote_ltp(symbolstring):
+    global fyers
+    data = {"symbols": symbolstring}
+    return fyers.quotes(data)
 
-
-def fyers_single_order(symbol,qty,side,product):
+def fyers_single_order(symbol,qty,side,product,limit,type):
     data = {
         "symbol": symbol,
         "qty": qty,
-        "type": 2,
+        "type": type,
         "side": side,
         "productType": product,
-        "limitPrice": 0,
+        "limitPrice": limit,
         "stopPrice": 0,
         "validity": "DAY",
         "disclosedQty": 0,

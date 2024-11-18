@@ -75,7 +75,8 @@ def get_user_settings():
                 'START TIME':row['START TIME'],'STOP TIME':row['STOP TIME'],'ProductType':row['ProductType'],'ContractType':row['ContractType'],
                 'STRIKE STEP':row['STRIKE STEP'],'STRATEGYTAG':row['STRATEGYTAG'],'Mode':row['Mode'],'TradeExp':row['TradeExp'],
                 'InitialAtm': None,'UpLevel': None,'Downlevel': None,'InitialLevelRun':None,'ltp':None,'PrevLevel':None,'First':None,
-                'callstrike':None,'putstrike':None,'trade_exp':None,'CycleCount':row['CycleCount'],'TradeCount':0,'TimeBasedExit':None
+                'callstrike':None,'putstrike':None,'trade_exp':None,'CycleCount':row['CycleCount'],'TradeCount':0,'TimeBasedExit':None,
+                'LmtPercentage':row['LmtPercentage'],
             }
             result_dict[row['SYMBOL']] = symbol_dict
         print("result_dict: ", result_dict)
@@ -152,26 +153,8 @@ TOTP_KEY = credentials_dict.get('totpkey')
 FY_ID = credentials_dict.get('FY_ID')
 PIN = credentials_dict.get('PIN')
 
-
-#
-# print("client_id: ",client_id)
-# print("redirect_uri: ",redirect_uri)
-# print("FY_ID: ",FY_ID)
-# print("TOTP_KEY: ",TOTP_KEY)
-# print("PIN: ",PIN)
-# print("secret_key: ",secret_key)
-
-# Automated login and initialization steps
 FyresIntegration.automated_login(client_id=client_id, redirect_uri=redirect_uri, secret_key=secret_key, FY_ID=FY_ID,
                                      PIN=PIN, TOTP_KEY=TOTP_KEY)
-
-
-# loginresult=Algofox.login_algpfox(username=Algofoxid, password=Algofoxpassword, role=role)
-#
-#
-# if loginresult!=200:
-#     print("Algofoz credential wrong, shutdown down Trde Copier, please provide correct details and run again otherwise program will not work correctly ...")
-#     time.sleep(10000)
 
 
 def create_websocket():
@@ -213,6 +196,69 @@ def generate_pe_otm_strike_prices(lowest, highest, strike_step, ltp):
     base_strike = (ltp // strike_step) * strike_step
     strikes = [int(base_strike - (i * strike_step)) for i in range(lowest, highest + 1)]
     return strikes
+
+def generate_symbols_string_ce(params, segment):
+    symbols_string = ""  # Initialize an empty string to hold the symbols
+    for strike in params['callstrike']:
+        if params['ContractType'] == "MONTHLY":
+            symbol = monthly_exp_contract_date(
+                date_str=params['TradeExp'],
+                ex=segment,
+                ex_underlying_symbol=params['BaseSymBol'],
+                strike=strike,
+                opt_type="CE"
+            )
+        elif params['ContractType'] == "WEEKLY":
+            symbol = weekly_exp_contract_date(
+                date_str=params['TradeExp'],
+                ex=segment,
+                ex_underlying_symbol=params['BaseSymBol'],
+                strike=strike,
+                opt_type="CE"
+            )
+        else:
+            continue  # Skip if ContractType is not recognized
+
+        # Append the generated symbol to the string
+        symbols_string += f"{symbol},"
+
+    # Remove the trailing comma
+    symbols_string = symbols_string.rstrip(",")
+
+    return symbols_string
+
+def generate_symbols_string_pe(params, segment):
+    symbols_string = ""  # Initialize an empty string to hold the symbols
+    for strike in params['callstrike']:
+        if params['ContractType'] == "MONTHLY":
+            symbol = monthly_exp_contract_date(
+                date_str=params['TradeExp'],
+                ex=segment,
+                ex_underlying_symbol=params['BaseSymBol'],
+                strike=strike,
+                opt_type="PE"
+            )
+        elif params['ContractType'] == "WEEKLY":
+            symbol = weekly_exp_contract_date(
+                date_str=params['TradeExp'],
+                ex=segment,
+                ex_underlying_symbol=params['BaseSymBol'],
+                strike=strike,
+                opt_type="PE"
+            )
+        else:
+            continue  # Skip if ContractType is not recognized
+
+        # Append the generated symbol to the string
+        symbols_string += f"{symbol},"
+
+    # Remove the trailing comma
+    symbols_string = symbols_string.rstrip(",")
+
+    return symbols_string
+
+def calculate_percentage(number, percentage):
+    return (number * percentage) / 100
 
 def main_strategy():
     print("main_strategy running ")
@@ -276,6 +322,11 @@ def main_strategy():
                             trade_exp = datetime.strptime(params['TradeExp'], "%d-%b-%y").strftime("%d%b%Y").upper()
                             params['trade_exp']=trade_exp
 
+                            symbols_string =generate_symbols_string_ce(params, segment=segment)
+                            print("symbols_string: ",symbols_string)
+                            quote_res = FyresIntegration.fyres_quote_ltp(symbols_string)
+                            symbol_to_lp = {item['n']: item['v']['lp'] for item in quote_res['d']}
+                            print("symbol_to_lp: ", symbol_to_lp)
                             for strike in params['callstrike']:
                                 if params['ContractType']=="MONTHLY":
                                     symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
@@ -289,16 +340,38 @@ def main_strategy():
                                                                      strike=strike,
                                                                      opt_type="CE")
 
-                                print("symbol: ", symbol)
-                                FyresIntegration.fyers_single_order(symbol=symbol,qty=params["Quantity"],
-                                                                        side=-1,product=params['ProductType'])
+
+                                print("symbol: ",symbol)
+                                if params['LmtPercentage']==0:
+                                    FyresIntegration.fyers_single_order(symbol=symbol,qty=params["Quantity"],
+                                                                        side=-1,product=params['ProductType'],limit=0,type=2)
+
+                                if params['LmtPercentage'] > 0:
+                                    # Extract 'lp' value for the symbol
+                                    if symbol in symbol_to_lp:
+                                        lp_value = symbol_to_lp[symbol]
+                                        percentage_value=calculate_percentage(lp_value, params['LmtPercentage'])
+                                        ep=lp_value-percentage_value
+                                        ep = int(ep) + 0.05
+                                        print(f"Using lp value for {symbol}: {lp_value}")
+                                        FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                            side=-1, product=params['ProductType'],
+                                                                            limit=ep, type=1)
+
+
+
+
 
                                 # Algofox.Short_order_algofox(symbol, quantity=params["Quantity"], instrumentType='OTPIDX',
                                 #                             direction='BUY', product='MIS', strategy=params["STRATEGYTAG"],
                                 #                             order_typ="MARKET", price=0, username=Algofoxid,
                                 #                             password=Algofoxpassword, role=role,
                                 #                             trigger=None, sll_price=None)
-
+                            symbols_string = generate_symbols_string_pe(params, segment=segment)
+                            print("symbols_string: ", symbols_string)
+                            quote_res = FyresIntegration.fyres_quote_ltp(symbols_string)
+                            symbol_to_lp = {item['n']: item['v']['lp'] for item in quote_res['d']}
+                            print("symbol_to_lp: ", symbol_to_lp)
                             for strike in params['putstrike']:
                                 if params['ContractType'] == "MONTHLY":
                                     symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
@@ -313,8 +386,21 @@ def main_strategy():
 
 
                                 print("symbol: ", symbol)
-                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
-                                                                    side=-1, product=params['ProductType'])
+                                if params['LmtPercentage'] == 0:
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                        side=-1, product=params['ProductType'],limit=0,type=2)
+                                if params['LmtPercentage'] > 0:
+                                    # Extract 'lp' value for the symbol
+                                    if symbol in symbol_to_lp:
+                                        lp_value = symbol_to_lp[symbol]
+                                        percentage_value=calculate_percentage(lp_value, params['LmtPercentage'])
+                                        ep=lp_value-percentage_value
+                                        ep = int(ep) + 0.05
+                                        print(f"Using lp value for {symbol}: {lp_value}")
+                                        FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                            side=-1, product=params['ProductType'],
+                                                                            limit=ep, type=1)
+
                                 # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|PE"
                                 # Algofox.Short_order_algofox(symbol, quantity=params["Quantity"], instrumentType='OTPIDX',
                                 #                             direction='BUY', product='MIS', strategy=params["STRATEGYTAG"],
@@ -325,6 +411,12 @@ def main_strategy():
                         if params['TYPE'] == 'BUY':
                             trade_exp = datetime.strptime(params['TradeExp'], "%d-%b-%y").strftime("%d%b%Y").upper()
                             params['trade_exp']=trade_exp
+
+                            symbols_string = generate_symbols_string_ce(params, segment=segment)
+                            print("symbols_string: ", symbols_string)
+                            quote_res = FyresIntegration.fyres_quote_ltp(symbols_string)
+                            symbol_to_lp = {item['n']: item['v']['lp'] for item in quote_res['d']}
+                            print("symbol_to_lp: ", symbol_to_lp)
                             for strike in params['callstrike']:
                                 if params['ContractType']=="MONTHLY":
                                     symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
@@ -339,8 +431,21 @@ def main_strategy():
                                                                      opt_type="CE")
 
                                 print("symbol: ", symbol)
-                                FyresIntegration.fyers_single_order(symbol=symbol,qty=params["Quantity"],
-                                                                        side=1,product=params['ProductType'])
+                                if params['LmtPercentage'] == 0:
+                                    FyresIntegration.fyers_single_order(symbol=symbol,qty=params["Quantity"],
+                                                                        side=1,product=params['ProductType'],type=2,limit=0)
+
+                                if params['LmtPercentage'] > 0:
+                                    # Extract 'lp' value for the symbol
+                                    if symbol in symbol_to_lp:
+                                        lp_value = symbol_to_lp[symbol]
+                                        percentage_value=calculate_percentage(lp_value, params['LmtPercentage'])
+                                        ep=lp_value+percentage_value
+                                        ep = int(ep) + 0.05
+                                        print(f"Using lp value for {symbol}: {lp_value}")
+                                        FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                            side=1, product=params['ProductType'],
+                                                                            limit=ep, type=1)
 
 
                                 # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|CE"
@@ -350,7 +455,11 @@ def main_strategy():
                                 #                           order_typ="MARKET", price=0, username=Algofoxid,
                                 #                           password=Algofoxpassword, role=role,
                                 #                           trigger=None, sll_price=None)
-
+                            symbols_string = generate_symbols_string_pe(params, segment=segment)
+                            print("symbols_string: ", symbols_string)
+                            quote_res = FyresIntegration.fyres_quote_ltp(symbols_string)
+                            symbol_to_lp = {item['n']: item['v']['lp'] for item in quote_res['d']}
+                            print("symbol_to_lp: ", symbol_to_lp)
                             for strike in params['putstrike']:
                                 if params['ContractType']=="MONTHLY":
                                     symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
@@ -365,8 +474,19 @@ def main_strategy():
                                                                      opt_type="PE")
 
                                 print("symbol: ", symbol)
-                                FyresIntegration.fyers_single_order(symbol=symbol,qty=params["Quantity"],
-                                                                        side=1,product=params['ProductType'])
+                                if params['LmtPercentage'] == 0:
+                                    FyresIntegration.fyers_single_order(symbol=symbol,qty=params["Quantity"],
+                                                                        side=1,product=params['ProductType'],type=2,limit=0)
+                                if params['LmtPercentage'] > 0:
+                                    if symbol in symbol_to_lp:
+                                        lp_value = symbol_to_lp[symbol]
+                                        percentage_value = calculate_percentage(lp_value, params['LmtPercentage'])
+                                        ep = lp_value + percentage_value
+                                        ep = int(ep) + 0.05
+                                        print(f"Using lp value for {symbol}: {lp_value}")
+                                        FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                            side=1, product=params['ProductType'],
+                                                                            limit=ep, type=1)
                                 # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|PE"
                                 # Algofox.Buy_order_algofox(symbol, quantity=params["Quantity"],
                                 #                           instrumentType='OTPIDX', direction='BUY', product='MIS',
@@ -419,8 +539,18 @@ def main_strategy():
                                                                       opt_type="CE")
 
                                 # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|CE"
-                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
-                                                                    side=1, product=params['ProductType'])
+                                if params['LmtPercentage'] == 0:
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                    side=1, product=params['ProductType'],type=2,limit=0)
+
+                                if params['LmtPercentage'] > 0:
+                                    lp=FyresIntegration.fyres_quote_ltp(symbol)
+                                    percentage_value=calculate_percentage(lp,params['LmtPercentage'])
+                                    ep=lp+percentage_value
+                                    ep = int(ep) + 0.05
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                        side=1, product=params['ProductType'], type=1,
+                                                                        limit=ep)
 
                                 # Algofox.Cover_order_algofox(symbol, quantity=params["Quantity"],
                                 #                               instrumentType='OTPIDX', direction='BUY', product='MIS',
@@ -447,9 +577,18 @@ def main_strategy():
                                                                       ex_underlying_symbol=params['BaseSymBol'],
                                                                       strike=strike,
                                                                       opt_type="PE")
+                                if params['LmtPercentage'] == 0:
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                    side=1, product=params['ProductType'],type=2,limit=0)
 
-                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
-                                                                    side=1, product=params['ProductType'])
+                                if params['LmtPercentage'] > 0:
+                                    lp=FyresIntegration.fyres_quote_ltp(symbol)
+                                    percentage_value=calculate_percentage(lp,params['LmtPercentage'])
+                                    ep=lp+percentage_value
+                                    ep = int(ep) + 0.05
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                        side=1, product=params['ProductType'], type=1,
+                                                                        limit=ep)
 
                                 # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|PE"
                                 # Algofox.Cover_order_algofox(symbol, quantity=params["Quantity"],
@@ -480,8 +619,18 @@ def main_strategy():
                                                                       strike=new_strike,
                                                                       opt_type="CE")
 
-                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
-                                                                    side=-1, product=params['ProductType'])
+                                if params['LmtPercentage'] == 0:
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                    side=-1, product=params['ProductType'],type=2,limit=0)
+                                if params['LmtPercentage'] > 0:
+                                    lp=FyresIntegration.fyres_quote_ltp(symbol)
+                                    percentage_value=calculate_percentage(lp,params['LmtPercentage'])
+                                    ep=lp-percentage_value
+                                    ep = int(ep) + 0.05
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                        side=-1, product=params['ProductType'], type=1,
+                                                                        limit=ep)
+
                                 # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{new_strike}|CE"
                                 # Algofox.Short_order_algofox(symbol, quantity=params["Quantity"],
                                 #                           instrumentType='OTPIDX', direction='BUY', product='MIS',
@@ -507,9 +656,19 @@ def main_strategy():
                                                                       ex_underlying_symbol=params['BaseSymBol'],
                                                                       strike=new_strike,
                                                                       opt_type="PE")
+                                if params['LmtPercentage'] == 0:
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                    side=-1, product=params['ProductType'],limit=0,type=2)
 
-                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
-                                                                    side=-1, product=params['ProductType'])
+                                if params['LmtPercentage'] > 0:
+                                    lp=FyresIntegration.fyres_quote_ltp(symbol)
+                                    percentage_value=calculate_percentage(lp,params['LmtPercentage'])
+                                    ep=lp-percentage_value
+                                    ep = int(ep) + 0.05
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                        side=-1, product=params['ProductType'], type=1,
+                                                                        limit=ep)
+
                                 # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{new_strike}|PE"
                                 # Algofox.Short_order_algofox(symbol, quantity=params["Quantity"],
                                 #                           instrumentType='OTPIDX', direction='BUY', product='MIS',
@@ -535,9 +694,18 @@ def main_strategy():
                                                                       ex_underlying_symbol=params['BaseSymBol'],
                                                                       strike=strike,
                                                                       opt_type="CE")
+                                if params['LmtPercentage'] == 0:
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                    side=-1, product=params['ProductType'],limit=0,type=2)
 
-                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
-                                                                    side=-1, product=params['ProductType'])
+                                if params['LmtPercentage'] > 0:
+                                    lp=FyresIntegration.fyres_quote_ltp(symbol)
+                                    percentage_value=calculate_percentage(lp,params['LmtPercentage'])
+                                    ep=lp-percentage_value
+                                    ep = int(ep) + 0.05
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                        side=-1, product=params['ProductType'], type=1,
+                                                                        limit=ep)
 
                                 # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|CE"
                                 # Algofox.Sell_order_algofox(symbol, quantity=params["Quantity"],
@@ -563,9 +731,17 @@ def main_strategy():
                                                                       ex_underlying_symbol=params['BaseSymBol'],
                                                                       strike=strike,
                                                                       opt_type="PE")
-
-                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
-                                                                    side=-1, product=params['ProductType'])
+                                if params['LmtPercentage'] == 0:
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                    side=-1, product=params['ProductType'],limit=0,type=2)
+                                if params['LmtPercentage'] > 0:
+                                    lp=FyresIntegration.fyres_quote_ltp(symbol)
+                                    percentage_value=calculate_percentage(lp,params['LmtPercentage'])
+                                    ep=lp-percentage_value
+                                    ep = int(ep) + 0.05
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                        side=-1, product=params['ProductType'], type=1,
+                                                                        limit=ep)
                                 # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|PE"
                                 # Algofox.Sell_order_algofox(symbol, quantity=params["Quantity"],
                                 #                            instrumentType='OTPIDX', direction='BUY', product='MIS',
@@ -592,9 +768,19 @@ def main_strategy():
                                                                       ex_underlying_symbol=params['BaseSymBol'],
                                                                       strike=new_strike,
                                                                       opt_type="CE")
+                                if params['LmtPercentage'] == 0:
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                    side=1, product=params['ProductType'],limit=0,type=2)
+                                if params['LmtPercentage'] > 0:
+                                    lp=FyresIntegration.fyres_quote_ltp(symbol)
+                                    percentage_value=calculate_percentage(lp,params['LmtPercentage'])
+                                    ep=lp+percentage_value
+                                    ep = int(ep) + 0.05
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                        side=1, product=params['ProductType'], type=1,
+                                                                        limit=ep)
 
-                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
-                                                                    side=1, product=params['ProductType'])
+
                                 # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{new_strike}|CE"
                                 # Algofox.Buy_order_algofox(symbol, quantity=params["Quantity"],
                                 #                           instrumentType='OTPIDX', direction='BUY', product='MIS',
@@ -619,9 +805,17 @@ def main_strategy():
                                                                       ex_underlying_symbol=params['BaseSymBol'],
                                                                       strike=new_strike,
                                                                       opt_type="PE")
-
-                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
-                                                                    side=1, product=params['ProductType'])
+                                if params['LmtPercentage'] == 0:
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                    side=1, product=params['ProductType'],limit=0,type=2)
+                                if params['LmtPercentage'] > 0:
+                                    lp=FyresIntegration.fyres_quote_ltp(symbol)
+                                    percentage_value=calculate_percentage(lp,params['LmtPercentage'])
+                                    ep=lp+percentage_value
+                                    ep = int(ep) + 0.05
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                        side=1, product=params['ProductType'], type=1,
+                                                                        limit=ep)
                                 # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{new_strike}|PE"
                                 # Algofox.Buy_order_algofox(symbol, quantity=params["Quantity"],
                                 #                           instrumentType='OTPIDX', direction='BUY', product='MIS',
@@ -658,9 +852,17 @@ def main_strategy():
                                                                       ex_underlying_symbol=params['BaseSymBol'],
                                                                       strike=strike,
                                                                       opt_type="CE")
-
-                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
-                                                                    side=1, product=params['ProductType'])
+                                if params['LmtPercentage'] == 0:
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                    side=1, product=params['ProductType'],limit=0,type=2)
+                                if params['LmtPercentage'] > 0:
+                                    lp=FyresIntegration.fyres_quote_ltp(symbol)
+                                    percentage_value=calculate_percentage(lp,params['LmtPercentage'])
+                                    ep=lp+percentage_value
+                                    ep = int(ep) + 0.05
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                        side=1, product=params['ProductType'], type=1,
+                                                                        limit=ep)
                                 # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|CE"
                                 # Algofox.Cover_order_algofox(symbol, quantity=params["Quantity"],
                                 #                            instrumentType='OTPIDX', direction='BUY', product='MIS',
@@ -685,9 +887,17 @@ def main_strategy():
                                                                       ex_underlying_symbol=params['BaseSymBol'],
                                                                       strike=strike,
                                                                       opt_type="PE")
-
-                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
-                                                                    side=1, product=params['ProductType'])
+                                if params['LmtPercentage'] == 0:
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                    side=1, product=params['ProductType'],limit=0,type=2)
+                                if params['LmtPercentage'] > 0:
+                                    lp=FyresIntegration.fyres_quote_ltp(symbol)
+                                    percentage_value=calculate_percentage(lp,params['LmtPercentage'])
+                                    ep=lp+percentage_value
+                                    ep = int(ep) + 0.05
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                        side=1, product=params['ProductType'], type=1,
+                                                                        limit=ep)
                                 # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|PE"
                                 # Algofox.Cover_order_algofox(symbol, quantity=params["Quantity"],
                                 #                            instrumentType='OTPIDX', direction='BUY', product='MIS',
@@ -714,9 +924,17 @@ def main_strategy():
                                                                       ex_underlying_symbol=params['BaseSymBol'],
                                                                       strike=new_strike,
                                                                       opt_type="CE")
-
-                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
-                                                                    side=-1, product=params['ProductType'])
+                                if params['LmtPercentage'] == 0:
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                    side=-1, product=params['ProductType'],limit=0,type=2)
+                                if params['LmtPercentage'] > 0:
+                                    lp=FyresIntegration.fyres_quote_ltp(symbol)
+                                    percentage_value=calculate_percentage(lp,params['LmtPercentage'])
+                                    ep=lp-percentage_value
+                                    ep = int(ep) + 0.05
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                        side=-1, product=params['ProductType'], type=1,
+                                                                        limit=ep)
                                 # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{new_strike}|CE"
                                 # Algofox.Short_order_algofox(symbol, quantity=params["Quantity"],
                                 #                           instrumentType='OTPIDX', direction='BUY', product='MIS',
@@ -742,9 +960,17 @@ def main_strategy():
                                                                       ex_underlying_symbol=params['BaseSymBol'],
                                                                       strike=new_strike,
                                                                       opt_type="PE")
-
-                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
-                                                                    side=-1, product=params['ProductType'])
+                                if params['LmtPercentage'] == 0:
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                    side=-1, product=params['ProductType'],limit=0,type=2)
+                                if params['LmtPercentage'] > 0:
+                                    lp=FyresIntegration.fyres_quote_ltp(symbol)
+                                    percentage_value=calculate_percentage(lp,params['LmtPercentage'])
+                                    ep=lp-percentage_value
+                                    ep = int(ep) + 0.05
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                        side=-1, product=params['ProductType'], type=1,
+                                                                        limit=ep)
                                 # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{new_strike}|PE"
                                 # Algofox.Short_order_algofox(symbol, quantity=params["Quantity"],
                                 #                           instrumentType='OTPIDX', direction='BUY', product='MIS',
@@ -770,9 +996,17 @@ def main_strategy():
                                                                       ex_underlying_symbol=params['BaseSymBol'],
                                                                       strike=strike,
                                                                       opt_type="CE")
-
-                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
-                                                                    side=-1, product=params['ProductType'])
+                                if params['LmtPercentage'] == 0:
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                    side=-1, product=params['ProductType'],limit=0,type=2)
+                                if params['LmtPercentage'] > 0:
+                                    lp=FyresIntegration.fyres_quote_ltp(symbol)
+                                    percentage_value=calculate_percentage(lp,params['LmtPercentage'])
+                                    ep=lp-percentage_value
+                                    ep = int(ep) + 0.05
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                        side=-1, product=params['ProductType'], type=1,
+                                                                        limit=ep)
                                 # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|CE"
                                 # Algofox.Sell_order_algofox(symbol, quantity=params["Quantity"],
                                 #                               instrumentType='OTPIDX', direction='BUY', product='MIS',
@@ -797,9 +1031,18 @@ def main_strategy():
                                                                       ex_underlying_symbol=params['BaseSymBol'],
                                                                       strike=strike,
                                                                       opt_type="PE")
+                                if params['LmtPercentage'] == 0:
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                    side=-1, product=params['ProductType'],limit=0,type=2)
 
-                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
-                                                                    side=-1, product=params['ProductType'])
+                                if params['LmtPercentage'] > 0:
+                                    lp=FyresIntegration.fyres_quote_ltp(symbol)
+                                    percentage_value=calculate_percentage(lp,params['LmtPercentage'])
+                                    ep=lp-percentage_value
+                                    ep = int(ep) + 0.05
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                        side=-1, product=params['ProductType'], type=1,
+                                                                        limit=ep)
                                 # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|PE"
                                 # Algofox.Sell_order_algofox(symbol, quantity=params["Quantity"],
                                 #                            instrumentType='OTPIDX', direction='BUY', product='MIS',
@@ -826,9 +1069,17 @@ def main_strategy():
                                                                       ex_underlying_symbol=params['BaseSymBol'],
                                                                       strike=new_strike,
                                                                       opt_type="CE")
-
-                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
-                                                                    side=1, product=params['ProductType'])
+                                if params['LmtPercentage'] == 0:
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                    side=1, product=params['ProductType'],limit=0,type=2)
+                                if params['LmtPercentage'] > 0:
+                                    lp=FyresIntegration.fyres_quote_ltp(symbol)
+                                    percentage_value=calculate_percentage(lp,params['LmtPercentage'])
+                                    ep=lp+percentage_value
+                                    ep = int(ep) + 0.05
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                        side=1, product=params['ProductType'], type=1,
+                                                                        limit=ep)
                                 # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{new_strike}|CE"
                                 # Algofox.Buy_order_algofox(symbol, quantity=params["Quantity"],
                                 #                           instrumentType='OTPIDX', direction='BUY', product='MIS',
@@ -855,9 +1106,17 @@ def main_strategy():
                                                                       ex_underlying_symbol=params['BaseSymBol'],
                                                                       strike=new_strike,
                                                                       opt_type="PE")
-
-                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
-                                                                    side=1, product=params['ProductType'])
+                                if params['LmtPercentage'] == 0:
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                    side=1, product=params['ProductType'],limit=0,type=2)
+                                if params['LmtPercentage'] > 0:
+                                    lp=FyresIntegration.fyres_quote_ltp(symbol)
+                                    percentage_value=calculate_percentage(lp,params['LmtPercentage'])
+                                    ep=lp+percentage_value
+                                    ep = int(ep) + 0.05
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                        side=1, product=params['ProductType'], type=1,
+                                                                        limit=ep)
                                 # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{new_strike}|PE"
                                 # Algofox.Buy_order_algofox(symbol, quantity=params["Quantity"],
                                 #                           instrumentType='OTPIDX', direction='BUY', product='MIS',
@@ -900,12 +1159,31 @@ def main_strategy():
                         print(Orderlog)
                         write_to_order_logs(Orderlog)
                         if params['TYPE'] == 'BUY':
-                            FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"], side=-1,
-                                                                product=params['ProductType'])
+                            if params['LmtPercentage'] == 0:
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"], side=-1,
+                                                                product=params['ProductType'],limit=0,type=2)
+
+                            if params['LmtPercentage'] > 0:
+                                lp = FyresIntegration.fyres_quote_ltp(symbol)
+                                percentage_value = calculate_percentage(lp, params['LmtPercentage'])
+                                ep = lp - percentage_value
+                                ep = int(ep) + 0.05
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                    side=-1, product=params['ProductType'], type=1,
+                                                                    limit=ep)
 
                         if params['TYPE'] == 'SHORT':
-                            FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"], side=1,
-                                                                product=params['ProductType'])
+                            if params['LmtPercentage'] == 0:
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"], side=1,
+                                                                product=params['ProductType'],limit=0,type=2)
+                            if params['LmtPercentage'] > 0:
+                                lp = FyresIntegration.fyres_quote_ltp(symbol)
+                                percentage_value = calculate_percentage(lp, params['LmtPercentage'])
+                                ep = lp + percentage_value
+                                ep = int(ep) + 0.05
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                    side=1, product=params['ProductType'], type=1,
+                                                                    limit=ep)
 
                     # Process each strike in putstrike list
                     for strike in params['putstrike']:
@@ -930,12 +1208,32 @@ def main_strategy():
                         print(Orderlog)
                         write_to_order_logs(Orderlog)
                         if params['TYPE'] == 'BUY':
-                            FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"], side=-1,
-                                                                product=params['ProductType'])
+                            if params['LmtPercentage'] == 0:
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"], side=-1,
+                                                                product=params['ProductType'],limit=0,type=2)
+
+                            if params['LmtPercentage'] > 0:
+                                lp = FyresIntegration.fyres_quote_ltp(symbol)
+                                percentage_value = calculate_percentage(lp, params['LmtPercentage'])
+                                ep = lp - percentage_value
+                                ep = int(ep) + 0.05
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                    side=-1, product=params['ProductType'], type=1,
+                                                                    limit=ep)
 
                         if params['TYPE'] == 'SHORT':
-                            FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"], side=1,
-                                                                product=params['ProductType'])
+                            if params['LmtPercentage'] == 0:
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"], side=1,
+                                                                product=params['ProductType'],limit=0,type=2)
+
+                            if params['LmtPercentage'] > 0:
+                                lp = FyresIntegration.fyres_quote_ltp(symbol)
+                                percentage_value = calculate_percentage(lp, params['LmtPercentage'])
+                                ep = lp + percentage_value
+                                ep = int(ep) + 0.05
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                    side=1, product=params['ProductType'], type=1,
+                                                                    limit=ep)
 
 
 
@@ -967,12 +1265,31 @@ def main_strategy():
                         print(Orderlog)
                         write_to_order_logs(Orderlog)
                         if params['TYPE'] == 'BUY':
-                            FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"], side=-1,
-                                                            product=params['ProductType'])
+                            if params['LmtPercentage'] == 0:
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"], side=-1,
+                                                            product=params['ProductType'],limit=0,type=2)
+
+                            if params['LmtPercentage'] > 0:
+                                lp = FyresIntegration.fyres_quote_ltp(symbol)
+                                percentage_value = calculate_percentage(lp, params['LmtPercentage'])
+                                ep = lp - percentage_value
+                                ep = int(ep) + 0.05
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                    side=-1, product=params['ProductType'], type=1,
+                                                                    limit=ep)
 
                         if params['TYPE'] == 'SHORT':
-                            FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"], side=1,
-                                                            product=params['ProductType'])
+                            if params['LmtPercentage'] == 0:
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"], side=1,
+                                                            product=params['ProductType'],limit=0,type=2)
+                            if params['LmtPercentage'] > 0:
+                                lp = FyresIntegration.fyres_quote_ltp(symbol)
+                                percentage_value = calculate_percentage(lp, params['LmtPercentage'])
+                                ep = lp + percentage_value
+                                ep = int(ep) + 0.05
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                    side=1, product=params['ProductType'], type=1,
+                                                                    limit=ep)
 
                     # Process each strike in putstrike list
                     for strike in params['putstrike']:
@@ -997,12 +1314,30 @@ def main_strategy():
                         print(Orderlog)
                         write_to_order_logs(Orderlog)
                         if params['TYPE'] == 'BUY':
-                            FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"], side=-1,
-                                                                product=params['ProductType'])
+                            if params['LmtPercentage'] == 0:
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"], side=-1,
+                                                                product=params['ProductType'],limit=0,type=2)
+                            if params['LmtPercentage'] > 0:
+                                lp = FyresIntegration.fyres_quote_ltp(symbol)
+                                percentage_value = calculate_percentage(lp, params['LmtPercentage'])
+                                ep = lp - percentage_value
+                                ep = int(ep) + 0.05
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                    side=-1, product=params['ProductType'], type=1,
+                                                                    limit=ep)
 
                         if params['TYPE'] == 'SHORT':
-                            FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"], side=1,
-                                                                product=params['ProductType'])
+                            if params['LmtPercentage'] == 0:
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"], side=1,
+                                                                product=params['ProductType'],limit=0,type=2)
+                            if params['LmtPercentage'] > 0:
+                                lp = FyresIntegration.fyres_quote_ltp(symbol)
+                                percentage_value = calculate_percentage(lp, params['LmtPercentage'])
+                                ep = lp + percentage_value
+                                ep = int(ep) + 0.05
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                    side=1, product=params['ProductType'], type=1,
+                                                                    limit=ep)
 
 
 
