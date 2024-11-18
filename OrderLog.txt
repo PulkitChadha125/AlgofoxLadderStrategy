@@ -1,6 +1,9 @@
-18/11/2024 20:54:50 Symbol : NIFTY50-INDEX, InitialAtm: 23450, Uplevel:23500 ,Downlevel:23400
-18/11/2024 20:54:50 Initial trade SHORT NIFTY50-INDEX for call in strike [23450, 23500, 23550]
-18/11/2024 20:54:50 Initial trade SHORT NIFTY50-INDEX for put in strike [23450, 23400, 23350]
-18/11/2024 20:54:54 Symbol : BANKNIFTY, InitialAtm: 50400, Uplevel:50500 ,Downlevel:50300
-18/11/2024 20:54:54 Initial trade SHORT BANKNIFTY for call in strike [50400, 50500, 50600]
-18/11/2024 20:54:54 Initial trade SHORT BANKNIFTY for put in strike [50400, 50300, 50200]
+18/11/2024 23:37:24 Symbol : NIFTY50-INDEX, InitialAtm: 23450, Uplevel:23500 ,Downlevel:23400
+18/11/2024 23:37:24 Initial trade SHORT NIFTY50-INDEX for call in strike [23450, 23500, 23550]
+18/11/2024 23:37:24 Initial trade SHORT NIFTY50-INDEX for put in strike [23450, 23400, 23350]
+18/11/2024 23:37:40 Symbol : BANKNIFTY, InitialAtm: 50400, Uplevel:50500 ,Downlevel:50300
+18/11/2024 23:37:40 Initial trade SHORT BANKNIFTY for call in strike [50400, 50500, 50600]
+18/11/2024 23:37:40 Initial trade SHORT BANKNIFTY for put in strike [50400, 50300, 50200]
+18/11/2024 23:38:05 Symbol : CRUDEOILM, InitialAtm: 5850, Uplevel:5900 ,Downlevel:5800
+18/11/2024 23:38:05 Initial trade SHORT CRUDEOILM for call in strike [5800, 5850, 5900]
+18/11/2024 23:38:05 Initial trade SHORT CRUDEOILM for put in strike [5800, 5750, 5700]

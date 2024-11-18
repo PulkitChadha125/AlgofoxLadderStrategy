@@ -229,7 +229,7 @@ def generate_symbols_string_ce(params, segment):
 
 def generate_symbols_string_pe(params, segment):
     symbols_string = ""  # Initialize an empty string to hold the symbols
-    for strike in params['callstrike']:
+    for strike in params['putstrike']:
         if params['ContractType'] == "MONTHLY":
             symbol = monthly_exp_contract_date(
                 date_str=params['TradeExp'],
@@ -326,7 +326,7 @@ def main_strategy():
                             print("symbols_string: ",symbols_string)
                             quote_res = FyresIntegration.fyres_quote_ltp(symbols_string)
                             symbol_to_lp = {item['n']: item['v']['lp'] for item in quote_res['d']}
-                            print("symbol_to_lp: ", symbol_to_lp)
+                            print("params['callstrike']: ", params['callstrike'])
                             for strike in params['callstrike']:
                                 if params['ContractType']=="MONTHLY":
                                     symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
@@ -342,21 +342,26 @@ def main_strategy():
 
 
                                 print("symbol: ",symbol)
-                                if params['LmtPercentage']==0:
-                                    FyresIntegration.fyers_single_order(symbol=symbol,qty=params["Quantity"],
-                                                                        side=-1,product=params['ProductType'],limit=0,type=2)
+                                try:
+                                    if params['LmtPercentage']==0:
+                                        FyresIntegration.fyers_single_order(symbol=symbol,qty=params["Quantity"],
+                                                                            side=-1,product=params['ProductType'],limit=0,type=2)
 
-                                if params['LmtPercentage'] > 0:
-                                    # Extract 'lp' value for the symbol
-                                    if symbol in symbol_to_lp:
-                                        lp_value = symbol_to_lp[symbol]
-                                        percentage_value=calculate_percentage(lp_value, params['LmtPercentage'])
-                                        ep=lp_value-percentage_value
-                                        ep = int(ep) + 0.05
-                                        print(f"Using lp value for {symbol}: {lp_value}")
-                                        FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
-                                                                            side=-1, product=params['ProductType'],
-                                                                            limit=ep, type=1)
+                                    if params['LmtPercentage'] > 0:
+                                        # Extract 'lp' value for the symbol
+                                        if symbol in symbol_to_lp:
+                                            lp_value = symbol_to_lp[symbol]
+                                            percentage_value=calculate_percentage(lp_value, params['LmtPercentage'])
+                                            ep=lp_value-percentage_value
+                                            ep = int(ep) + 0.05
+                                            print(f"Using lp value for {symbol}: {ep}")
+
+                                            FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                                side=-1, product=params['ProductType'],
+                                                                                limit=ep, type=1)
+                                except Exception as e:
+                                    print("Error in main strategy : ", str(e))
+                                    traceback.print_exc()
 
 
 
@@ -386,20 +391,24 @@ def main_strategy():
 
 
                                 print("symbol: ", symbol)
-                                if params['LmtPercentage'] == 0:
-                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
-                                                                        side=-1, product=params['ProductType'],limit=0,type=2)
-                                if params['LmtPercentage'] > 0:
-                                    # Extract 'lp' value for the symbol
-                                    if symbol in symbol_to_lp:
-                                        lp_value = symbol_to_lp[symbol]
-                                        percentage_value=calculate_percentage(lp_value, params['LmtPercentage'])
-                                        ep=lp_value-percentage_value
-                                        ep = int(ep) + 0.05
-                                        print(f"Using lp value for {symbol}: {lp_value}")
+                                try:
+                                    if params['LmtPercentage'] == 0:
                                         FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
-                                                                            side=-1, product=params['ProductType'],
-                                                                            limit=ep, type=1)
+                                                                            side=-1, product=params['ProductType'],limit=0,type=2)
+                                    if params['LmtPercentage'] > 0:
+                                        # Extract 'lp' value for the symbol
+                                        if symbol in symbol_to_lp:
+                                            lp_value = symbol_to_lp[symbol]
+                                            percentage_value=calculate_percentage(lp_value, params['LmtPercentage'])
+                                            ep=lp_value-percentage_value
+                                            ep = int(ep) + 0.05
+                                            print(f"Using lp value for {symbol}: {ep}")
+                                            FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                                side=-1, product=params['ProductType'],
+                                                                                limit=ep, type=1)
+                                except Exception as e:
+                                    print("Error in main strategy : ", str(e))
+                                    traceback.print_exc()
 
                                 # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|PE"
                                 # Algofox.Short_order_algofox(symbol, quantity=params["Quantity"], instrumentType='OTPIDX',
@@ -442,7 +451,7 @@ def main_strategy():
                                         percentage_value=calculate_percentage(lp_value, params['LmtPercentage'])
                                         ep=lp_value+percentage_value
                                         ep = int(ep) + 0.05
-                                        print(f"Using lp value for {symbol}: {lp_value}")
+                                        print(f"Using lp value for {symbol}: {ep}")
                                         FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                             side=1, product=params['ProductType'],
                                                                             limit=ep, type=1)
@@ -460,6 +469,7 @@ def main_strategy():
                             quote_res = FyresIntegration.fyres_quote_ltp(symbols_string)
                             symbol_to_lp = {item['n']: item['v']['lp'] for item in quote_res['d']}
                             print("symbol_to_lp: ", symbol_to_lp)
+                            print("params['putstrike']: ",params['putstrike'])
                             for strike in params['putstrike']:
                                 if params['ContractType']=="MONTHLY":
                                     symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
