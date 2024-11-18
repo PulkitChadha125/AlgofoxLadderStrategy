@@ -265,6 +265,56 @@ def fyres_quote(symbol):
     return response
 
 
+def fyers_single_order(symbol,qty,side,product):
+    data = {
+        "symbol": symbol,
+        "qty": qty,
+        "type": 2,
+        "side": side,
+        "productType": product,
+        "limitPrice": 0,
+        "stopPrice": 0,
+        "validity": "DAY",
+        "disclosedQty": 0,
+        "offlineOrder": False,
+        "stopLoss": 0,
+        "takeProfit": 0
+    }  ## This is a sample example to place a limit order you can make the further changes based on your requriements
+
+    print(fyers.place_order(data))
+
+def fyers_basket_buy():
+    # 1 buy , -1 sell
+    data = [{"symbol": "NSE:SBIN-EQ",
+             "qty": 1,
+             "type": 1,
+             "side": 1,
+             "productType": "INTRADAY",
+             "limitPrice": 61050,
+             "stopPrice": 0,
+             "disclosedQty": 0,
+             "validity": "DAY",
+             "offlineOrder": False,
+             "stopLoss": 0,
+             "takeProfit": 0
+             },
+            {
+                "symbol": "NSE:HDFC-EQ",
+                "qty": 1,
+                "type": 2,
+                "side": 1,
+                "productType": "INTRADAY",
+                "limitPrice": 0,
+                "stopPrice": 0,
+                "disclosedQty": 0,
+                "validity": "DAY",
+                "offlineOrder": False,
+                "stopLoss": 0,
+                "takeProfit": 0
+            }]  ### This takes input as a list containing multiple single order data into it and the execution of the orders goes in the same format as mentioned.
+
+    print(fyers.place_basket_orders(data))
+
 
 
 

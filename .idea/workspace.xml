@@ -5,19 +5,34 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="015bbad2-074d-49b0-b524-d52100b46d90" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/MasterContract Links Fyers" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Algofox ver.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/AlgoFoxLadderStrategy.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/AlgoFoxLadderStrategy.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Instrument.csv" beforeDir="false" afterPath="$PROJECT_DIR$/Instrument.csv" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Credentials.csv" beforeDir="false" afterPath="$PROJECT_DIR$/Credentials.csv" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FyresIntegration.py" beforeDir="false" afterPath="$PROJECT_DIR$/FyresIntegration.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/MCX_COM_Instrument.csv" beforeDir="false" afterPath="$PROJECT_DIR$/MCX_COM_Instrument.csv" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/NSE_CM_Instrument.csv" beforeDir="false" afterPath="$PROJECT_DIR$/NSE_CM_Instrument.csv" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/NSE_FO_Instrument.csv" beforeDir="false" afterPath="$PROJECT_DIR$/NSE_FO_Instrument.csv" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/OrderLog.txt" beforeDir="false" afterPath="$PROJECT_DIR$/OrderLog.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/TradeSettings.csv" beforeDir="false" afterPath="$PROJECT_DIR$/TradeSettings.csv" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/fyersApi.log" beforeDir="false" afterPath="$PROJECT_DIR$/fyersApi.log" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/fyersRequests.log" beforeDir="false" afterPath="$PROJECT_DIR$/fyersRequests.log" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.exe" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.spec" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Python Script" />
+      </list>
+    </option>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -35,8 +50,9 @@
     &quot;Python.Fyres activation.executor&quot;: &quot;Run&quot;,
     &quot;Python.main.executor&quot;: &quot;Run&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
     &quot;git-widget-placeholder&quot;: &quot;master&quot;,
-    &quot;last_opened_file_path&quot;: &quot;D:/Desktop/python projects/Algofox Premium Scanner V2&quot;,
+    &quot;last_opened_file_path&quot;: &quot;D:/Desktop/python projects/RaveORCPR_Breakout&quot;,
     &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;
   }
 }</component>
@@ -67,7 +83,7 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-python-sdk-d7ad00fb9fc3-c546a90a8094-com.jetbrains.pycharm.community.sharedIndexes.bundled-PC-242.23726.102" />
+        <option value="bundled-python-sdk-fb887030ada0-aa17d162503b-com.jetbrains.pycharm.community.sharedIndexes.bundled-PC-243.21565.199" />
       </set>
     </attachedChunks>
   </component>
