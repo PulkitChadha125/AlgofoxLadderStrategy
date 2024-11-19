@@ -1182,7 +1182,7 @@ def main_strategy():
                                 if symbol in symbol_to_lp:
                                     lp_value = symbol_to_lp[symbol]
                                     percentage_value = calculate_percentage(lp_value, params['LmtPercentage'])
-                                    ep = lp - percentage_value
+                                    ep = lp_value - percentage_value
                                     ep = int(ep) + 0.05
                                     FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                         side=-1, product=params['ProductType'], type=1,
@@ -1196,7 +1196,7 @@ def main_strategy():
                                 if symbol in symbol_to_lp:
                                     lp_value = symbol_to_lp[symbol]
                                     percentage_value = calculate_percentage(lp_value, params['LmtPercentage'])
-                                    ep = lp + percentage_value
+                                    ep = lp_value + percentage_value
                                     ep = int(ep) + 0.05
                                     FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                         side=1, product=params['ProductType'], type=1,
@@ -1238,7 +1238,7 @@ def main_strategy():
                                 if symbol in symbol_to_lp:
                                     lp_value = symbol_to_lp[symbol]
                                     percentage_value = calculate_percentage(lp_value, params['LmtPercentage'])
-                                    ep = lp - percentage_value
+                                    ep = lp_value - percentage_value
                                     ep = int(ep) + 0.05
                                     FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                         side=-1, product=params['ProductType'], type=1,
@@ -1253,7 +1253,7 @@ def main_strategy():
                                 if symbol in symbol_to_lp:
                                     lp_value = symbol_to_lp[symbol]
                                     percentage_value = calculate_percentage(lp_value, params['LmtPercentage'])
-                                    ep = lp + percentage_value
+                                    ep = lp_value + percentage_value
                                     ep = int(ep) + 0.05
                                     FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                         side=1, product=params['ProductType'], type=1,
@@ -1356,7 +1356,7 @@ def main_strategy():
                                 if symbol in symbol_to_lp:
                                     lp_value = symbol_to_lp[symbol]
                                     percentage_value = calculate_percentage(lp_value, params['LmtPercentage'])
-                                    ep = lp - percentage_value
+                                    ep = lp_value - percentage_value
                                     ep = int(ep) + 0.05
                                     FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                         side=-1, product=params['ProductType'], type=1,
@@ -1370,7 +1370,7 @@ def main_strategy():
                                 if symbol in symbol_to_lp:
                                     lp_value = symbol_to_lp[symbol]
                                     percentage_value = calculate_percentage(lp_value, params['LmtPercentage'])
-                                    ep = lp + percentage_value
+                                    ep = lp_value + percentage_value
                                     ep = int(ep) + 0.05
                                     FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                         side=1, product=params['ProductType'], type=1,

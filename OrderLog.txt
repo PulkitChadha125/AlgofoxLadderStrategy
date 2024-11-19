@@ -1,1 +1,28 @@
 19/11/2024 12:15:47 Symbol : NIFTY50-INDEX, InitialAtm: 23800, Uplevel:23900 ,Downlevel:23700
+19/11/2024 12:15:47 Initial trade SHORT NIFTY50-INDEX for call in strike [23700, 23800, 23900]
+19/11/2024 12:15:47 Initial trade SHORT NIFTY50-INDEX for put in strike [23700, 23600, 23500]
+19/11/2024 12:15:53 Symbol : BANKNIFTY, InitialAtm: 51000, Uplevel:51200 ,Downlevel:50800
+19/11/2024 12:15:53 Initial trade SHORT BANKNIFTY for call in strike [50800, 51000, 51200]
+19/11/2024 12:15:53 Initial trade SHORT BANKNIFTY for put in strike [50800, 50600, 50400]
+19/11/2024 12:15:57 Symbol : CRUDEOILM, InitialAtm: 5850, Uplevel:5900 ,Downlevel:5800
+19/11/2024 12:15:57 Initial trade SHORT CRUDEOILM for call in strike [5850, 5900, 5950]
+19/11/2024 12:15:57 Initial trade SHORT CRUDEOILM for put in strike [5850, 5800, 5750]
+19/11/2024 12:16:08 Symbol : NATGASMINI, InitialAtm: 250, Uplevel:255 ,Downlevel:245
+19/11/2024 12:16:08 Initial trade SHORT NATGASMINI for call in strike [250, 255, 260]
+19/11/2024 12:16:08 Initial trade SHORT NATGASMINI for put in strike [250, 245, 240]
+19/11/2024 12:19:00 Time-based exit for call strike NSE:NIFTY24NOV23700CE
+19/11/2024 12:19:00 Time-based exit for call strike NSE:NIFTY24NOV23800CE
+19/11/2024 12:19:00 Time-based exit for call strike NSE:NIFTY24NOV23900CE
+19/11/2024 12:19:00 Time-based exit for put strike NSE:NIFTY24NOV23700PE
+19/11/2024 12:19:05 Time-based exit for call strike NSE:BANKNIFTY24NOV50800CE
+19/11/2024 12:19:05 Time-based exit for call strike NSE:BANKNIFTY24NOV51000CE
+19/11/2024 12:19:05 Time-based exit for call strike NSE:BANKNIFTY24NOV51200CE
+19/11/2024 12:19:05 Time-based exit for put strike NSE:BANKNIFTY24NOV50800PE
+19/11/2024 12:19:10 Time-based exit for call strike MCX:CRUDEOILM24DEC5850CE
+19/11/2024 12:19:10 Time-based exit for call strike MCX:CRUDEOILM24DEC5900CE
+19/11/2024 12:19:10 Time-based exit for call strike MCX:CRUDEOILM24DEC5950CE
+19/11/2024 12:19:10 Time-based exit for put strike MCX:CRUDEOILM24DEC5850PE
+19/11/2024 12:19:15 Time-based exit for call strike MCX:NATGASMINI24NOV250CE
+19/11/2024 12:19:15 Time-based exit for call strike MCX:NATGASMINI24NOV255CE
+19/11/2024 12:19:15 Time-based exit for call strike MCX:NATGASMINI24NOV260CE
+19/11/2024 12:19:15 Time-based exit for put strike MCX:NATGASMINI24NOV250PE
