@@ -326,7 +326,7 @@ def main_strategy():
                             print("symbols_string: ",symbols_string)
                             quote_res = FyresIntegration.fyres_quote_ltp(symbols_string)
                             symbol_to_lp = {item['n']: item['v']['lp'] for item in quote_res['d']}
-                            print("params['callstrike']: ", params['callstrike'])
+                            print("quote_res: ", quote_res)
                             for strike in params['callstrike']:
                                 if params['ContractType']=="MONTHLY":
                                     symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
@@ -554,7 +554,7 @@ def main_strategy():
                                                                     side=1, product=params['ProductType'],type=2,limit=0)
 
                                 if params['LmtPercentage'] > 0:
-                                    lp=FyresIntegration.fyres_quote_ltp(symbol)
+                                    lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
                                     percentage_value=calculate_percentage(lp,params['LmtPercentage'])
                                     ep=lp+percentage_value
                                     ep = int(ep) + 0.05
@@ -592,7 +592,7 @@ def main_strategy():
                                                                     side=1, product=params['ProductType'],type=2,limit=0)
 
                                 if params['LmtPercentage'] > 0:
-                                    lp=FyresIntegration.fyres_quote_ltp(symbol)
+                                    lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
                                     percentage_value=calculate_percentage(lp,params['LmtPercentage'])
                                     ep=lp+percentage_value
                                     ep = int(ep) + 0.05
@@ -633,7 +633,7 @@ def main_strategy():
                                     FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                     side=-1, product=params['ProductType'],type=2,limit=0)
                                 if params['LmtPercentage'] > 0:
-                                    lp=FyresIntegration.fyres_quote_ltp(symbol)
+                                    lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
                                     percentage_value=calculate_percentage(lp,params['LmtPercentage'])
                                     ep=lp-percentage_value
                                     ep = int(ep) + 0.05
@@ -671,7 +671,7 @@ def main_strategy():
                                                                     side=-1, product=params['ProductType'],limit=0,type=2)
 
                                 if params['LmtPercentage'] > 0:
-                                    lp=FyresIntegration.fyres_quote_ltp(symbol)
+                                    lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
                                     percentage_value=calculate_percentage(lp,params['LmtPercentage'])
                                     ep=lp-percentage_value
                                     ep = int(ep) + 0.05
@@ -709,7 +709,7 @@ def main_strategy():
                                                                     side=-1, product=params['ProductType'],limit=0,type=2)
 
                                 if params['LmtPercentage'] > 0:
-                                    lp=FyresIntegration.fyres_quote_ltp(symbol)
+                                    lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
                                     percentage_value=calculate_percentage(lp,params['LmtPercentage'])
                                     ep=lp-percentage_value
                                     ep = int(ep) + 0.05
@@ -745,7 +745,7 @@ def main_strategy():
                                     FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                     side=-1, product=params['ProductType'],limit=0,type=2)
                                 if params['LmtPercentage'] > 0:
-                                    lp=FyresIntegration.fyres_quote_ltp(symbol)
+                                    lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
                                     percentage_value=calculate_percentage(lp,params['LmtPercentage'])
                                     ep=lp-percentage_value
                                     ep = int(ep) + 0.05
@@ -782,7 +782,7 @@ def main_strategy():
                                     FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                     side=1, product=params['ProductType'],limit=0,type=2)
                                 if params['LmtPercentage'] > 0:
-                                    lp=FyresIntegration.fyres_quote_ltp(symbol)
+                                    lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
                                     percentage_value=calculate_percentage(lp,params['LmtPercentage'])
                                     ep=lp+percentage_value
                                     ep = int(ep) + 0.05
@@ -819,7 +819,7 @@ def main_strategy():
                                     FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                     side=1, product=params['ProductType'],limit=0,type=2)
                                 if params['LmtPercentage'] > 0:
-                                    lp=FyresIntegration.fyres_quote_ltp(symbol)
+                                    lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
                                     percentage_value=calculate_percentage(lp,params['LmtPercentage'])
                                     ep=lp+percentage_value
                                     ep = int(ep) + 0.05
@@ -866,7 +866,7 @@ def main_strategy():
                                     FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                     side=1, product=params['ProductType'],limit=0,type=2)
                                 if params['LmtPercentage'] > 0:
-                                    lp=FyresIntegration.fyres_quote_ltp(symbol)
+                                    lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
                                     percentage_value=calculate_percentage(lp,params['LmtPercentage'])
                                     ep=lp+percentage_value
                                     ep = int(ep) + 0.05
@@ -901,7 +901,7 @@ def main_strategy():
                                     FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                     side=1, product=params['ProductType'],limit=0,type=2)
                                 if params['LmtPercentage'] > 0:
-                                    lp=FyresIntegration.fyres_quote_ltp(symbol)
+                                    lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
                                     percentage_value=calculate_percentage(lp,params['LmtPercentage'])
                                     ep=lp+percentage_value
                                     ep = int(ep) + 0.05
@@ -938,7 +938,7 @@ def main_strategy():
                                     FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                     side=-1, product=params['ProductType'],limit=0,type=2)
                                 if params['LmtPercentage'] > 0:
-                                    lp=FyresIntegration.fyres_quote_ltp(symbol)
+                                    lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
                                     percentage_value=calculate_percentage(lp,params['LmtPercentage'])
                                     ep=lp-percentage_value
                                     ep = int(ep) + 0.05
@@ -974,7 +974,7 @@ def main_strategy():
                                     FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                     side=-1, product=params['ProductType'],limit=0,type=2)
                                 if params['LmtPercentage'] > 0:
-                                    lp=FyresIntegration.fyres_quote_ltp(symbol)
+                                    lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
                                     percentage_value=calculate_percentage(lp,params['LmtPercentage'])
                                     ep=lp-percentage_value
                                     ep = int(ep) + 0.05
@@ -1010,7 +1010,7 @@ def main_strategy():
                                     FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                     side=-1, product=params['ProductType'],limit=0,type=2)
                                 if params['LmtPercentage'] > 0:
-                                    lp=FyresIntegration.fyres_quote_ltp(symbol)
+                                    lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
                                     percentage_value=calculate_percentage(lp,params['LmtPercentage'])
                                     ep=lp-percentage_value
                                     ep = int(ep) + 0.05
@@ -1046,7 +1046,7 @@ def main_strategy():
                                                                     side=-1, product=params['ProductType'],limit=0,type=2)
 
                                 if params['LmtPercentage'] > 0:
-                                    lp=FyresIntegration.fyres_quote_ltp(symbol)
+                                    lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
                                     percentage_value=calculate_percentage(lp,params['LmtPercentage'])
                                     ep=lp-percentage_value
                                     ep = int(ep) + 0.05
@@ -1083,7 +1083,7 @@ def main_strategy():
                                     FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                     side=1, product=params['ProductType'],limit=0,type=2)
                                 if params['LmtPercentage'] > 0:
-                                    lp=FyresIntegration.fyres_quote_ltp(symbol)
+                                    lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
                                     percentage_value=calculate_percentage(lp,params['LmtPercentage'])
                                     ep=lp+percentage_value
                                     ep = int(ep) + 0.05
@@ -1120,7 +1120,7 @@ def main_strategy():
                                     FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                     side=1, product=params['ProductType'],limit=0,type=2)
                                 if params['LmtPercentage'] > 0:
-                                    lp=FyresIntegration.fyres_quote_ltp(symbol)
+                                    lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
                                     percentage_value=calculate_percentage(lp,params['LmtPercentage'])
                                     ep=lp+percentage_value
                                     ep = int(ep) + 0.05
@@ -1147,6 +1147,11 @@ def main_strategy():
                     params['TimeBasedExit'] = "EXITDONE"
                     params['TradeCount']=params['CycleCount']+10
                     # Process each strike in callstrike list
+                    symbols_string = generate_symbols_string_ce(params, segment=segment)
+                    print("symbols_string: ", symbols_string)
+                    quote_res = FyresIntegration.fyres_quote_ltp(symbols_string)
+                    symbol_to_lp = {item['n']: item['v']['lp'] for item in quote_res['d']}
+                    print("quote_res: ", quote_res)
                     for strike in params['callstrike']:
                         if params['ContractType'] == "MONTHLY":
                             symbol = monthly_exp_contract_date(
@@ -1174,28 +1179,35 @@ def main_strategy():
                                                                 product=params['ProductType'],limit=0,type=2)
 
                             if params['LmtPercentage'] > 0:
-                                lp = FyresIntegration.fyres_quote_ltp(symbol)
-                                percentage_value = calculate_percentage(lp, params['LmtPercentage'])
-                                ep = lp - percentage_value
-                                ep = int(ep) + 0.05
-                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
-                                                                    side=-1, product=params['ProductType'], type=1,
-                                                                    limit=ep)
+                                if symbol in symbol_to_lp:
+                                    lp_value = symbol_to_lp[symbol]
+                                    percentage_value = calculate_percentage(lp_value, params['LmtPercentage'])
+                                    ep = lp - percentage_value
+                                    ep = int(ep) + 0.05
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                        side=-1, product=params['ProductType'], type=1,
+                                                                        limit=ep)
 
                         if params['TYPE'] == 'SHORT':
                             if params['LmtPercentage'] == 0:
                                 FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"], side=1,
                                                                 product=params['ProductType'],limit=0,type=2)
                             if params['LmtPercentage'] > 0:
-                                lp = FyresIntegration.fyres_quote_ltp(symbol)
-                                percentage_value = calculate_percentage(lp, params['LmtPercentage'])
-                                ep = lp + percentage_value
-                                ep = int(ep) + 0.05
-                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
-                                                                    side=1, product=params['ProductType'], type=1,
-                                                                    limit=ep)
+                                if symbol in symbol_to_lp:
+                                    lp_value = symbol_to_lp[symbol]
+                                    percentage_value = calculate_percentage(lp_value, params['LmtPercentage'])
+                                    ep = lp + percentage_value
+                                    ep = int(ep) + 0.05
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                        side=1, product=params['ProductType'], type=1,
+                                                                        limit=ep)
 
                     # Process each strike in putstrike list
+                    symbols_string = generate_symbols_string_pe(params, segment=segment)
+                    print("symbols_string: ", symbols_string)
+                    quote_res = FyresIntegration.fyres_quote_ltp(symbols_string)
+                    symbol_to_lp = {item['n']: item['v']['lp'] for item in quote_res['d']}
+                    print("symbol_to_lp: ", symbol_to_lp)
                     for strike in params['putstrike']:
                         if params['ContractType'] == "MONTHLY":
                             symbol = monthly_exp_contract_date(
@@ -1223,13 +1235,14 @@ def main_strategy():
                                                                 product=params['ProductType'],limit=0,type=2)
 
                             if params['LmtPercentage'] > 0:
-                                lp = FyresIntegration.fyres_quote_ltp(symbol)
-                                percentage_value = calculate_percentage(lp, params['LmtPercentage'])
-                                ep = lp - percentage_value
-                                ep = int(ep) + 0.05
-                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
-                                                                    side=-1, product=params['ProductType'], type=1,
-                                                                    limit=ep)
+                                if symbol in symbol_to_lp:
+                                    lp_value = symbol_to_lp[symbol]
+                                    percentage_value = calculate_percentage(lp_value, params['LmtPercentage'])
+                                    ep = lp - percentage_value
+                                    ep = int(ep) + 0.05
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                        side=-1, product=params['ProductType'], type=1,
+                                                                        limit=ep)
 
                         if params['TYPE'] == 'SHORT':
                             if params['LmtPercentage'] == 0:
@@ -1237,13 +1250,14 @@ def main_strategy():
                                                                 product=params['ProductType'],limit=0,type=2)
 
                             if params['LmtPercentage'] > 0:
-                                lp = FyresIntegration.fyres_quote_ltp(symbol)
-                                percentage_value = calculate_percentage(lp, params['LmtPercentage'])
-                                ep = lp + percentage_value
-                                ep = int(ep) + 0.05
-                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
-                                                                    side=1, product=params['ProductType'], type=1,
-                                                                    limit=ep)
+                                if symbol in symbol_to_lp:
+                                    lp_value = symbol_to_lp[symbol]
+                                    percentage_value = calculate_percentage(lp_value, params['LmtPercentage'])
+                                    ep = lp + percentage_value
+                                    ep = int(ep) + 0.05
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                        side=1, product=params['ProductType'], type=1,
+                                                                        limit=ep)
 
 
 
@@ -1252,7 +1266,11 @@ def main_strategy():
                     # Mark the exit as done
                     params['TimeBasedExit'] = "EXITDONE"
 
-                    # Process each strike in callstrike list
+                    symbols_string = generate_symbols_string_ce(params, segment=segment)
+                    print("symbols_string: ", symbols_string)
+                    quote_res = FyresIntegration.fyres_quote_ltp(symbols_string)
+                    symbol_to_lp = {item['n']: item['v']['lp'] for item in quote_res['d']}
+                    print("quote_res: ", quote_res)
                     for strike in params['callstrike']:
                         if params['ContractType'] == "MONTHLY":
                             symbol = monthly_exp_contract_date(
@@ -1280,11 +1298,12 @@ def main_strategy():
                                                             product=params['ProductType'],limit=0,type=2)
 
                             if params['LmtPercentage'] > 0:
-                                lp = FyresIntegration.fyres_quote_ltp(symbol)
-                                percentage_value = calculate_percentage(lp, params['LmtPercentage'])
-                                ep = lp - percentage_value
-                                ep = int(ep) + 0.05
-                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                if symbol in symbol_to_lp:
+                                    lp_value = symbol_to_lp[symbol]
+                                    percentage_value = calculate_percentage(lp_value, params['LmtPercentage'])
+                                    ep = lp_value - percentage_value
+                                    ep = int(ep) + 0.05
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                     side=-1, product=params['ProductType'], type=1,
                                                                     limit=ep)
 
@@ -1293,15 +1312,21 @@ def main_strategy():
                                 FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"], side=1,
                                                             product=params['ProductType'],limit=0,type=2)
                             if params['LmtPercentage'] > 0:
-                                lp = FyresIntegration.fyres_quote_ltp(symbol)
-                                percentage_value = calculate_percentage(lp, params['LmtPercentage'])
-                                ep = lp + percentage_value
-                                ep = int(ep) + 0.05
-                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                if symbol in symbol_to_lp:
+                                    lp_value = symbol_to_lp[symbol]
+                                    percentage_value = calculate_percentage(lp_value, params['LmtPercentage'])
+                                    ep = lp_value + percentage_value
+                                    ep = int(ep) + 0.05
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                     side=1, product=params['ProductType'], type=1,
                                                                     limit=ep)
 
                     # Process each strike in putstrike list
+                    symbols_string = generate_symbols_string_pe(params, segment=segment)
+                    print("symbols_string: ", symbols_string)
+                    quote_res = FyresIntegration.fyres_quote_ltp(symbols_string)
+                    symbol_to_lp = {item['n']: item['v']['lp'] for item in quote_res['d']}
+                    print("symbol_to_lp: ", symbol_to_lp)
                     for strike in params['putstrike']:
                         if params['ContractType'] == "MONTHLY":
                             symbol = monthly_exp_contract_date(
@@ -1328,26 +1353,28 @@ def main_strategy():
                                 FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"], side=-1,
                                                                 product=params['ProductType'],limit=0,type=2)
                             if params['LmtPercentage'] > 0:
-                                lp = FyresIntegration.fyres_quote_ltp(symbol)
-                                percentage_value = calculate_percentage(lp, params['LmtPercentage'])
-                                ep = lp - percentage_value
-                                ep = int(ep) + 0.05
-                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
-                                                                    side=-1, product=params['ProductType'], type=1,
-                                                                    limit=ep)
+                                if symbol in symbol_to_lp:
+                                    lp_value = symbol_to_lp[symbol]
+                                    percentage_value = calculate_percentage(lp_value, params['LmtPercentage'])
+                                    ep = lp - percentage_value
+                                    ep = int(ep) + 0.05
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                        side=-1, product=params['ProductType'], type=1,
+                                                                        limit=ep)
 
                         if params['TYPE'] == 'SHORT':
                             if params['LmtPercentage'] == 0:
                                 FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"], side=1,
                                                                 product=params['ProductType'],limit=0,type=2)
                             if params['LmtPercentage'] > 0:
-                                lp = FyresIntegration.fyres_quote_ltp(symbol)
-                                percentage_value = calculate_percentage(lp, params['LmtPercentage'])
-                                ep = lp + percentage_value
-                                ep = int(ep) + 0.05
-                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
-                                                                    side=1, product=params['ProductType'], type=1,
-                                                                    limit=ep)
+                                if symbol in symbol_to_lp:
+                                    lp_value = symbol_to_lp[symbol]
+                                    percentage_value = calculate_percentage(lp_value, params['LmtPercentage'])
+                                    ep = lp + percentage_value
+                                    ep = int(ep) + 0.05
+                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                                                                        side=1, product=params['ProductType'], type=1,
+                                                                        limit=ep)
 
 
 
