@@ -311,12 +311,12 @@ def main_strategy():
                         params['callstrike'] = generate_ce_otm_strike_prices(lowest=params['STRIKE_LOWEST'],
                                                                              highest=params['STRIKE_HIGHEST'],
                                                                              strike_step=params['STRIKE STEP'],
-                                                                             ltp=params['ltp'])
+                                                                             ltp=params['InitialAtm'])
 
                         params['putstrike'] = generate_pe_otm_strike_prices(lowest=params['STRIKE_LOWEST'],
                                                                             highest=params['STRIKE_HIGHEST'],
                                                                             strike_step=params['STRIKE STEP'],
-                                                                            ltp=params['ltp'])
+                                                                            ltp=params['InitialAtm'])
                         params['TimeBasedExit']= "TAKEEXIT"
                         if params['TYPE'] == 'SHORT':
                             trade_exp = datetime.strptime(params['TradeExp'], "%d-%b-%y").strftime("%d%b%Y").upper()
@@ -507,10 +507,10 @@ def main_strategy():
 
                         params['TradeCount']= params['TradeCount']+1
 
-                        Orderlog = f"{timestamp} Initial trade {params['TYPE']} {params['SYMBOL']} for call in strike {params['callstrike']}"
+                        Orderlog = f"{timestamp} Initial trade {params['TYPE']} {params['SYMBOL']} {params['ltp']} for call in strike {params['callstrike']}"
                         print(Orderlog)
                         write_to_order_logs(Orderlog)
-                        Orderlog = f"{timestamp} Initial trade {params['TYPE']} {params['SYMBOL']} for put in strike {params['putstrike']}"
+                        Orderlog = f"{timestamp} Initial trade {params['TYPE']} {params['SYMBOL']} {params['ltp']} for put in strike {params['putstrike']}"
                         print(Orderlog)
                         write_to_order_logs(Orderlog)
 
@@ -1289,13 +1289,12 @@ def main_strategy():
                                 opt_type="CE"  # Assuming CE for call strikes
                             )
                         # Log the exit and execute the order
-                        Orderlog = f"{timestamp} Time-based exit for call strike {symbol}"
-                        print(Orderlog)
-                        write_to_order_logs(Orderlog)
+
                         if params['TYPE'] == 'BUY':
                             if params['LmtPercentage'] == 0:
                                 FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"], side=-1,
                                                             product=params['ProductType'],limit=0,type=2)
+                                ep=0
 
                             if params['LmtPercentage'] > 0:
                                 if symbol in symbol_to_lp:
@@ -1306,6 +1305,9 @@ def main_strategy():
                                     FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                     side=-1, product=params['ProductType'], type=1,
                                                                     limit=ep)
+                            Orderlog = f"{timestamp} Time-based exit for call strike {symbol}, ep= {ep}"
+                            print(Orderlog)
+                            write_to_order_logs(Orderlog)
 
                         if params['TYPE'] == 'SHORT':
                             if params['LmtPercentage'] == 0:
@@ -1345,13 +1347,12 @@ def main_strategy():
                                 opt_type="PE"  # Assuming PE for put strikes
                             )
                         # Log the exit and execute the order
-                        Orderlog = f"{timestamp} Time-based exit for put strike {symbol}"
-                        print(Orderlog)
-                        write_to_order_logs(Orderlog)
+
                         if params['TYPE'] == 'BUY':
                             if params['LmtPercentage'] == 0:
                                 FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"], side=-1,
                                                                 product=params['ProductType'],limit=0,type=2)
+                                ep = 0
                             if params['LmtPercentage'] > 0:
                                 if symbol in symbol_to_lp:
                                     lp_value = symbol_to_lp[symbol]
@@ -1366,6 +1367,7 @@ def main_strategy():
                             if params['LmtPercentage'] == 0:
                                 FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"], side=1,
                                                                 product=params['ProductType'],limit=0,type=2)
+                                ep=0
                             if params['LmtPercentage'] > 0:
                                 if symbol in symbol_to_lp:
                                     lp_value = symbol_to_lp[symbol]
@@ -1375,6 +1377,10 @@ def main_strategy():
                                     FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                         side=1, product=params['ProductType'], type=1,
                                                                         limit=ep)
+
+                        Orderlog = f"{timestamp} Time-based exit for put strike {symbol}, Price: {ep}"
+                        print(Orderlog)
+                        write_to_order_logs(Orderlog)
 
 
 
