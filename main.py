@@ -10,16 +10,16 @@ import traceback
 
 from datetime import datetime
 
+
 def weekly_exp_contract_date(date_str, ex, ex_underlying_symbol, strike, opt_type):
     parsed_date = datetime.strptime(date_str, "%d-%b-%y")
-    year = parsed_date.strftime("%y")  # Two-digit year
-    month = parsed_date.strftime("%m").lstrip("0")  # Remove leading zero from month
-    day = parsed_date.strftime("%d")  # Two-digit day
-    formatted_date = f"{year}{month}{day}"
+    year = parsed_date.strftime("%y")
+    month_letter = parsed_date.strftime("%b")[0].upper()
+    day = parsed_date.strftime("%d")
+    formatted_date = f"{year}{month_letter}{day}"
     final_symbol = f"{ex}:{ex_underlying_symbol}{formatted_date}{strike}{opt_type}"
     return final_symbol
 
-# Example usage
 
 
 
@@ -76,7 +76,7 @@ def get_user_settings():
                 'STRIKE STEP':row['STRIKE STEP'],'STRATEGYTAG':row['STRATEGYTAG'],'Mode':row['Mode'],'TradeExp':row['TradeExp'],
                 'InitialAtm': None,'UpLevel': None,'Downlevel': None,'InitialLevelRun':None,'ltp':None,'PrevLevel':None,'First':None,
                 'callstrike':None,'putstrike':None,'trade_exp':None,'CycleCount':row['CycleCount'],'TradeCount':0,'TimeBasedExit':None,
-                'LmtPercentage':row['LmtPercentage'],
+                'LmtPercentage':row['LmtPercentage'],'Tick':row['Tick']
             }
             result_dict[row['SYMBOL']] = symbol_dict
         print("result_dict: ", result_dict)
@@ -135,9 +135,9 @@ links = {
     "MCX_COM": "https://public.fyers.in/sym_details/MCX_COM_sym_master.json"
 }
 
-# for name, url in links.items():
-#     filename = f"{name}_Instrument.csv"
-#     download_symbols(url, filename)
+for name, url in links.items():
+    filename = f"{name}_Instrument.csv"
+    download_symbols(url, filename)
 
 
 
@@ -209,6 +209,7 @@ def generate_symbols_string_ce(params, segment):
                 opt_type="CE"
             )
         elif params['ContractType'] == "WEEKLY":
+
             symbol = weekly_exp_contract_date(
                 date_str=params['TradeExp'],
                 ex=segment,
@@ -291,34 +292,37 @@ def main_strategy():
                 ltp = FyresIntegration.shared_data.get(formatted_symbol)
                 # 'CycleCount':row['CycleCount'],'TradeCount':0,
                 if  current_time.strftime("%H:%M") >= EntryTime.strftime("%H:%M") and current_time.strftime("%H:%M") < ExitTime.strftime("%H:%M") :
-                    if ltp is not None and params['InitialLevelRun']is None:
-                        params['ltp']=ltp
+                    if ltp is not None:
+                        params['ltp']=float(ltp)
                         params['InitialAtm']=round_to_nearest(params['ltp'],params['STRIKE STEP'])
-                        if params['InitialAtm']> params['ltp'] :
+
+                    if params['InitialLevelRun']is None:
+                        if params['InitialAtm'] is not None and params['ltp'] is not None and params['InitialAtm']> params['ltp']  :
                             params['UpLevel']=params['InitialAtm']+params['STRIKE STEP']
                             params['Downlevel'] = params['InitialAtm'] - params['STRIKE STEP']
                             Orderlog = f"{timestamp} Symbol : {params['SYMBOL']}, InitialAtm: {params['InitialAtm']}, Uplevel:{params['UpLevel']} ,Downlevel:{params['Downlevel']}"
                             print(Orderlog)
                             write_to_order_logs(Orderlog)
 
-                        if params['InitialAtm'] < params['ltp'] :
+                        if params['InitialAtm'] is not None and params['ltp'] is not None  and params['InitialAtm'] < params['ltp'] :
                             params['UpLevel'] = params['InitialAtm'] + params['STRIKE STEP']
                             params['Downlevel'] = params['InitialAtm'] - params['STRIKE STEP']
                             Orderlog = f"{timestamp} Symbol : {params['SYMBOL']}, InitialAtm: {params['InitialAtm']}, Uplevel:{params['UpLevel']} ,Downlevel:{params['Downlevel']}"
                             print(Orderlog)
                             write_to_order_logs(Orderlog)
 
-                        params['callstrike'] = generate_ce_otm_strike_prices(lowest=params['STRIKE_LOWEST'],
-                                                                             highest=params['STRIKE_HIGHEST'],
-                                                                             strike_step=params['STRIKE STEP'],
-                                                                             ltp=params['InitialAtm'])
-
-                        params['putstrike'] = generate_pe_otm_strike_prices(lowest=params['STRIKE_LOWEST'],
-                                                                            highest=params['STRIKE_HIGHEST'],
-                                                                            strike_step=params['STRIKE STEP'],
-                                                                            ltp=params['InitialAtm'])
+                        if params['InitialAtm']is not None:
+                            params['callstrike'] = generate_ce_otm_strike_prices(lowest=params['STRIKE_LOWEST'],
+                                                                                 highest=params['STRIKE_HIGHEST'],
+                                                                                 strike_step=params['STRIKE STEP'],
+                                                                                 ltp=params['InitialAtm'])
+                        if params['InitialAtm'] is not None:
+                            params['putstrike'] = generate_pe_otm_strike_prices(lowest=params['STRIKE_LOWEST'],
+                                                                                highest=params['STRIKE_HIGHEST'],
+                                                                                strike_step=params['STRIKE STEP'],
+                                                                                ltp=params['InitialAtm'])
                         params['TimeBasedExit']= "TAKEEXIT"
-                        if params['TYPE'] == 'SHORT':
+                        if params['TYPE'] == 'SHORT'and params['InitialAtm'] is not None:
                             trade_exp = datetime.strptime(params['TradeExp'], "%d-%b-%y").strftime("%d%b%Y").upper()
                             params['trade_exp']=trade_exp
 
@@ -330,35 +334,35 @@ def main_strategy():
                             for strike in params['callstrike']:
                                 if params['ContractType']=="MONTHLY":
                                     symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
-                                                                       ex=segment,
-                                                                       ex_underlying_symbol=params['BaseSymBol'],
-                                                                       strike=strike, opt_type="CE")
+                                                                           ex=segment,
+                                                                           ex_underlying_symbol=params['BaseSymBol'],
+                                                                           strike=strike, opt_type="CE")
 
                                 if params['ContractType'] == "WEEKLY":
                                     symbol =weekly_exp_contract_date(date_str=params['TradeExp'], ex=segment,
-                                                                     ex_underlying_symbol=params['BaseSymBol'],
-                                                                     strike=strike,
-                                                                     opt_type="CE")
+                                                                         ex_underlying_symbol=params['BaseSymBol'],
+                                                                         strike=strike,
+                                                                         opt_type="CE")
 
 
                                 print("symbol: ",symbol)
                                 try:
                                     if params['LmtPercentage']==0:
                                         FyresIntegration.fyers_single_order(symbol=symbol,qty=params["Quantity"],
-                                                                            side=-1,product=params['ProductType'],limit=0,type=2)
+                                                                                side=-1,product=params['ProductType'],limit=0,type=2)
 
                                     if params['LmtPercentage'] > 0:
-                                        # Extract 'lp' value for the symbol
+                                            # Extract 'lp' value for the symbol
                                         if symbol in symbol_to_lp:
                                             lp_value = symbol_to_lp[symbol]
                                             percentage_value=calculate_percentage(lp_value, params['LmtPercentage'])
                                             ep=lp_value-percentage_value
-                                            ep = int(ep) + 0.05
+                                            ep = int(ep) +params['Tick']
                                             print(f"Using lp value for {symbol}: {ep}")
 
                                             FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
-                                                                                side=-1, product=params['ProductType'],
-                                                                                limit=ep, type=1)
+                                                                                    side=-1, product=params['ProductType'],
+                                                                                    limit=ep, type=1)
                                 except Exception as e:
                                     print("Error in main strategy : ", str(e))
                                     traceback.print_exc()
@@ -367,11 +371,11 @@ def main_strategy():
 
 
 
-                                # Algofox.Short_order_algofox(symbol, quantity=params["Quantity"], instrumentType='OTPIDX',
-                                #                             direction='BUY', product='MIS', strategy=params["STRATEGYTAG"],
-                                #                             order_typ="MARKET", price=0, username=Algofoxid,
-                                #                             password=Algofoxpassword, role=role,
-                                #                             trigger=None, sll_price=None)
+                                    # Algofox.Short_order_algofox(symbol, quantity=params["Quantity"], instrumentType='OTPIDX',
+                                    #                             direction='BUY', product='MIS', strategy=params["STRATEGYTAG"],
+                                    #                             order_typ="MARKET", price=0, username=Algofoxid,
+                                    #                             password=Algofoxpassword, role=role,
+                                    #                             trigger=None, sll_price=None)
                             symbols_string = generate_symbols_string_pe(params, segment=segment)
                             print("symbols_string: ", symbols_string)
                             quote_res = FyresIntegration.fyres_quote_ltp(symbols_string)
@@ -380,44 +384,44 @@ def main_strategy():
                             for strike in params['putstrike']:
                                 if params['ContractType'] == "MONTHLY":
                                     symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
-                                                                   ex=segment,
-                                                                   ex_underlying_symbol=params['BaseSymBol'],
-                                                                   strike=strike, opt_type="PE")
+                                                                       ex=segment,
+                                                                       ex_underlying_symbol=params['BaseSymBol'],
+                                                                       strike=strike, opt_type="PE")
                                 if params['ContractType'] == "WEEKLY":
                                     symbol =weekly_exp_contract_date(date_str=params['TradeExp'], ex=segment,
-                                                                     ex_underlying_symbol=params['BaseSymBol'],
-                                                                     strike=strike,
-                                                                     opt_type="PE")
+                                                                         ex_underlying_symbol=params['BaseSymBol'],
+                                                                         strike=strike,
+                                                                         opt_type="PE")
 
 
                                 print("symbol: ", symbol)
                                 try:
                                     if params['LmtPercentage'] == 0:
                                         FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
-                                                                            side=-1, product=params['ProductType'],limit=0,type=2)
+                                                                                side=-1, product=params['ProductType'],limit=0,type=2)
                                     if params['LmtPercentage'] > 0:
-                                        # Extract 'lp' value for the symbol
+                                            # Extract 'lp' value for the symbol
                                         if symbol in symbol_to_lp:
                                             lp_value = symbol_to_lp[symbol]
                                             percentage_value=calculate_percentage(lp_value, params['LmtPercentage'])
                                             ep=lp_value-percentage_value
-                                            ep = int(ep) + 0.05
+                                            ep = int(ep) +params['Tick']
                                             print(f"Using lp value for {symbol}: {ep}")
                                             FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
-                                                                                side=-1, product=params['ProductType'],
-                                                                                limit=ep, type=1)
+                                                                                    side=-1, product=params['ProductType'],
+                                                                                    limit=ep, type=1)
                                 except Exception as e:
                                     print("Error in main strategy : ", str(e))
                                     traceback.print_exc()
 
-                                # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|PE"
-                                # Algofox.Short_order_algofox(symbol, quantity=params["Quantity"], instrumentType='OTPIDX',
-                                #                             direction='BUY', product='MIS', strategy=params["STRATEGYTAG"],
-                                #                             order_typ="MARKET", price=0, username=Algofoxid,
-                                #                             password=Algofoxpassword, role=role,
-                                #                             trigger=None, sll_price=None)
+                                    # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|PE"
+                                    # Algofox.Short_order_algofox(symbol, quantity=params["Quantity"], instrumentType='OTPIDX',
+                                    #                             direction='BUY', product='MIS', strategy=params["STRATEGYTAG"],
+                                    #                             order_typ="MARKET", price=0, username=Algofoxid,
+                                    #                             password=Algofoxpassword, role=role,
+                                    #                             trigger=None, sll_price=None)
 
-                        if params['TYPE'] == 'BUY':
+                        if params['TYPE'] == 'BUY'and params['InitialAtm'] is not None:
                             trade_exp = datetime.strptime(params['TradeExp'], "%d-%b-%y").strftime("%d%b%Y").upper()
                             params['trade_exp']=trade_exp
 
@@ -429,41 +433,41 @@ def main_strategy():
                             for strike in params['callstrike']:
                                 if params['ContractType']=="MONTHLY":
                                     symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
-                                                                       ex=segment,
-                                                                       ex_underlying_symbol=params['BaseSymBol'],
-                                                                       strike=strike, opt_type="CE")
+                                                                           ex=segment,
+                                                                           ex_underlying_symbol=params['BaseSymBol'],
+                                                                           strike=strike, opt_type="CE")
 
                                 if params['ContractType'] == "WEEKLY":
                                     symbol =weekly_exp_contract_date(date_str=params['TradeExp'], ex=segment,
-                                                                     ex_underlying_symbol=params['BaseSymBol'],
-                                                                     strike=strike,
-                                                                     opt_type="CE")
+                                                                         ex_underlying_symbol=params['BaseSymBol'],
+                                                                         strike=strike,
+                                                                         opt_type="CE")
 
                                 print("symbol: ", symbol)
                                 if params['LmtPercentage'] == 0:
                                     FyresIntegration.fyers_single_order(symbol=symbol,qty=params["Quantity"],
-                                                                        side=1,product=params['ProductType'],type=2,limit=0)
+                                                                            side=1,product=params['ProductType'],type=2,limit=0)
 
                                 if params['LmtPercentage'] > 0:
-                                    # Extract 'lp' value for the symbol
+                                        # Extract 'lp' value for the symbol
                                     if symbol in symbol_to_lp:
                                         lp_value = symbol_to_lp[symbol]
                                         percentage_value=calculate_percentage(lp_value, params['LmtPercentage'])
                                         ep=lp_value+percentage_value
-                                        ep = int(ep) + 0.05
+                                        ep = int(ep) +params['Tick']
                                         print(f"Using lp value for {symbol}: {ep}")
                                         FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
-                                                                            side=1, product=params['ProductType'],
-                                                                            limit=ep, type=1)
+                                                                                side=1, product=params['ProductType'],
+                                                                                limit=ep, type=1)
 
 
-                                # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|CE"
-                                # Algofox.Buy_order_algofox(symbol, quantity=params["Quantity"],
-                                #                           instrumentType='OTPIDX', direction='BUY', product='MIS',
-                                #                           strategy=params["STRATEGYTAG"],
-                                #                           order_typ="MARKET", price=0, username=Algofoxid,
-                                #                           password=Algofoxpassword, role=role,
-                                #                           trigger=None, sll_price=None)
+                                    # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|CE"
+                                    # Algofox.Buy_order_algofox(symbol, quantity=params["Quantity"],
+                                    #                           instrumentType='OTPIDX', direction='BUY', product='MIS',
+                                    #                           strategy=params["STRATEGYTAG"],
+                                    #                           order_typ="MARKET", price=0, username=Algofoxid,
+                                    #                           password=Algofoxpassword, role=role,
+                                    #                           trigger=None, sll_price=None)
                             symbols_string = generate_symbols_string_pe(params, segment=segment)
                             print("symbols_string: ", symbols_string)
                             quote_res = FyresIntegration.fyres_quote_ltp(symbols_string)
@@ -473,37 +477,37 @@ def main_strategy():
                             for strike in params['putstrike']:
                                 if params['ContractType']=="MONTHLY":
                                     symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
-                                                                       ex=segment,
-                                                                       ex_underlying_symbol=params['BaseSymBol'],
-                                                                       strike=strike, opt_type="PE")
+                                                                           ex=segment,
+                                                                           ex_underlying_symbol=params['BaseSymBol'],
+                                                                           strike=strike, opt_type="PE")
 
                                 if params['ContractType'] == "WEEKLY":
                                     symbol =weekly_exp_contract_date(date_str=params['TradeExp'], ex=segment,
-                                                                     ex_underlying_symbol=params['BaseSymBol'],
-                                                                     strike=strike,
-                                                                     opt_type="PE")
+                                                                         ex_underlying_symbol=params['BaseSymBol'],
+                                                                         strike=strike,
+                                                                         opt_type="PE")
 
                                 print("symbol: ", symbol)
                                 if params['LmtPercentage'] == 0:
                                     FyresIntegration.fyers_single_order(symbol=symbol,qty=params["Quantity"],
-                                                                        side=1,product=params['ProductType'],type=2,limit=0)
+                                                                            side=1,product=params['ProductType'],type=2,limit=0)
                                 if params['LmtPercentage'] > 0:
                                     if symbol in symbol_to_lp:
                                         lp_value = symbol_to_lp[symbol]
                                         percentage_value = calculate_percentage(lp_value, params['LmtPercentage'])
                                         ep = lp_value + percentage_value
-                                        ep = int(ep) + 0.05
+                                        ep = int(ep) +params['Tick']
                                         print(f"Using lp value for {symbol}: {lp_value}")
                                         FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
-                                                                            side=1, product=params['ProductType'],
-                                                                            limit=ep, type=1)
-                                # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|PE"
-                                # Algofox.Buy_order_algofox(symbol, quantity=params["Quantity"],
-                                #                           instrumentType='OTPIDX', direction='BUY', product='MIS',
-                                #                           strategy=params["STRATEGYTAG"],
-                                #                           order_typ="MARKET", price=0, username=Algofoxid,
-                                #                           password=Algofoxpassword, role=role,
-                                #                           trigger=None, sll_price=None)
+                                                                                side=1, product=params['ProductType'],
+                                                                                limit=ep, type=1)
+                                    # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|PE"
+                                    # Algofox.Buy_order_algofox(symbol, quantity=params["Quantity"],
+                                    #                           instrumentType='OTPIDX', direction='BUY', product='MIS',
+                                    #                           strategy=params["STRATEGYTAG"],
+                                    #                           order_typ="MARKET", price=0, username=Algofoxid,
+                                    #                           password=Algofoxpassword, role=role,
+                                    #                           trigger=None, sll_price=None)
 
                         params['TradeCount']= params['TradeCount']+1
 
@@ -516,49 +520,47 @@ def main_strategy():
 
                         params['InitialLevelRun']="DONE"
 
-
-
-
-                        print("callstrike: ",params['callstrike'])
-                        print("putstrike: ", params['putstrike'])
-                        if (
-                                params['ltp']<=params['Downlevel'] and
-                                params['Downlevel'] is not None and
-                                params['InitialLevelRun'] =="DONE" and
-                                params['TradeCount'] < params['CycleCount']
-                        ):
+                    if (
+                            float(params['ltp'])<=float(params['Downlevel']) and
+                            params['Downlevel'] is not None and
+                            params['InitialLevelRun']=="DONE" and
+                            int(params['TradeCount'] )< int(params['CycleCount'])
+                    ):
                             # opening pos logic
-                            params['UpLevel'] = params['Downlevel'] + params['STRIKE STEP']
-                            params['Downlevel'] = params['Downlevel'] - params['STRIKE STEP']
-                            params['PrevLevel'] = 'DownLevel'
-                            params['TradeCount'] = params['TradeCount'] + 1
-                            if params['TYPE'] == 'SHORT':
+                        params['UpLevel'] = params['Downlevel'] + params['STRIKE STEP']
+                        params['Downlevel'] = params['Downlevel'] - params['STRIKE STEP']
+                        params['PrevLevel'] = 'DownLevel'
+                        params['TradeCount'] = params['TradeCount'] + 1
+                        Orderlog = f"{timestamp} Downside level @ {params['SYMBOL']} "
+                        print(Orderlog)
+                        write_to_order_logs(Orderlog)
+                        if params['TYPE'] == 'SHORT':
                                 # exit pos logic
 
-                                strike= max(params['callstrike'])
-                                if params['ContractType'] == "MONTHLY":
-                                    symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
+                            strike= max(params['callstrike'])
+                            if params['ContractType'] == "MONTHLY":
+                                symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
                                                                        ex=segment,
                                                                        ex_underlying_symbol=params['BaseSymBol'],
                                                                        strike=strike, opt_type="CE")
 
-                                if params['ContractType'] == "WEEKLY":
-                                    symbol = weekly_exp_contract_date(date_str=params['TradeExp'], ex=segment,
+                            if params['ContractType'] == "WEEKLY":
+                                symbol = weekly_exp_contract_date(date_str=params['TradeExp'], ex=segment,
                                                                       ex_underlying_symbol=params['BaseSymBol'],
                                                                       strike=strike,
                                                                       opt_type="CE")
 
                                 # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|CE"
-                                if params['LmtPercentage'] == 0:
-                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                            if params['LmtPercentage'] == 0:
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                     side=1, product=params['ProductType'],type=2,limit=0)
 
-                                if params['LmtPercentage'] > 0:
-                                    lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
-                                    percentage_value=calculate_percentage(lp,params['LmtPercentage'])
-                                    ep=lp+percentage_value
-                                    ep = int(ep) + 0.05
-                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                            if params['LmtPercentage'] > 0:
+                                lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
+                                percentage_value=calculate_percentage(lp,params['LmtPercentage'])
+                                ep=lp+percentage_value
+                                ep = int(ep) +params['Tick']
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                         side=1, product=params['ProductType'], type=1,
                                                                         limit=ep)
 
@@ -570,33 +572,33 @@ def main_strategy():
                                 #                               trigger=None, sll_price=None)
 
 
-                                params['callstrike'].remove(strike)
-                                Orderlog = f"{timestamp} Downside level @ {params['SYMBOL']} trade: {params['TYPE']} exit call strike  {symbol}"
-                                print(Orderlog)
-                                write_to_order_logs(Orderlog)
+                            params['callstrike'].remove(strike)
+                            Orderlog = f"{timestamp} Downside level @ {params['SYMBOL']} trade: {params['TYPE']} exit call strike  {symbol}"
+                            print(Orderlog)
+                            write_to_order_logs(Orderlog)
                                 # put
-                                strike = max(params['putstrike'])
-                                if params['ContractType'] == "MONTHLY":
-                                    symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
+                            strike = max(params['putstrike'])
+                            if params['ContractType'] == "MONTHLY":
+                                symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
                                                                        ex=segment,
                                                                        ex_underlying_symbol=params['BaseSymBol'],
                                                                        strike=strike, opt_type="PE")
 
-                                if params['ContractType'] == "WEEKLY":
-                                    symbol = weekly_exp_contract_date(date_str=params['TradeExp'], ex=segment,
+                            if params['ContractType'] == "WEEKLY":
+                                symbol = weekly_exp_contract_date(date_str=params['TradeExp'], ex=segment,
                                                                       ex_underlying_symbol=params['BaseSymBol'],
                                                                       strike=strike,
                                                                       opt_type="PE")
-                                if params['LmtPercentage'] == 0:
-                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                            if params['LmtPercentage'] == 0:
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                     side=1, product=params['ProductType'],type=2,limit=0)
 
-                                if params['LmtPercentage'] > 0:
-                                    lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
-                                    percentage_value=calculate_percentage(lp,params['LmtPercentage'])
-                                    ep=lp+percentage_value
-                                    ep = int(ep) + 0.05
-                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                            if params['LmtPercentage'] > 0:
+                                lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
+                                percentage_value=calculate_percentage(lp,params['LmtPercentage'])
+                                ep=lp+percentage_value
+                                ep = int(ep) +params['Tick']
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                         side=1, product=params['ProductType'], type=1,
                                                                         limit=ep)
 
@@ -608,36 +610,36 @@ def main_strategy():
                                 #                            password=Algofoxpassword, role=role,
                                 #                            trigger=None, sll_price=None)
 
-                                params['putstrike'].remove(strike)
+                            params['putstrike'].remove(strike)
 
-                                Orderlog = f"{timestamp} Downside level @ {params['SYMBOL']} trade: {params['TYPE']} exit put strike  {symbol}"
-                                print(Orderlog)
-                                write_to_order_logs(Orderlog)
+                            Orderlog = f"{timestamp} Downside level @ {params['SYMBOL']} trade: {params['TYPE']} exit put strike  {symbol}"
+                            print(Orderlog)
+                            write_to_order_logs(Orderlog)
                                 # opening pos logic
-                                lowest_strike = min(params['callstrike'])
-                                new_strike = lowest_strike - params['STRIKE STEP']
-                                params['callstrike'].append(new_strike)
-                                if params['ContractType'] == "MONTHLY":
-                                    symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
+                            lowest_strike = min(params['callstrike'])
+                            new_strike = lowest_strike - params['STRIKE STEP']
+                            params['callstrike'].append(new_strike)
+                            if params['ContractType'] == "MONTHLY":
+                                symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
                                                                        ex=segment,
                                                                        ex_underlying_symbol=params['BaseSymBol'],
                                                                        strike=new_strike, opt_type="CE")
 
-                                if params['ContractType'] == "WEEKLY":
-                                    symbol = weekly_exp_contract_date(date_str=params['TradeExp'], ex=segment,
+                            if params['ContractType'] == "WEEKLY":
+                                symbol = weekly_exp_contract_date(date_str=params['TradeExp'], ex=segment,
                                                                       ex_underlying_symbol=params['BaseSymBol'],
                                                                       strike=new_strike,
                                                                       opt_type="CE")
 
-                                if params['LmtPercentage'] == 0:
-                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                            if params['LmtPercentage'] == 0:
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                     side=-1, product=params['ProductType'],type=2,limit=0)
-                                if params['LmtPercentage'] > 0:
-                                    lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
-                                    percentage_value=calculate_percentage(lp,params['LmtPercentage'])
-                                    ep=lp-percentage_value
-                                    ep = int(ep) + 0.05
-                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                            if params['LmtPercentage'] > 0:
+                                lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
+                                percentage_value=calculate_percentage(lp,params['LmtPercentage'])
+                                ep=lp-percentage_value
+                                ep = int(ep)+params['Tick']
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                         side=-1, product=params['ProductType'], type=1,
                                                                         limit=ep)
 
@@ -648,34 +650,34 @@ def main_strategy():
                                 #                           order_typ="MARKET", price=0, username=Algofoxid,
                                 #                           password=Algofoxpassword, role=role,
                                 #                           trigger=None, sll_price=None)
-                                Orderlog = f"{timestamp} Downside level @ {params['SYMBOL']} trade: {params['TYPE']} entry call strike  {symbol}"
-                                print(Orderlog)
-                                write_to_order_logs(Orderlog)
+                            Orderlog = f"{timestamp} Downside level @ {params['SYMBOL']} trade: {params['TYPE']} entry call strike  {symbol}"
+                            print(Orderlog)
+                            write_to_order_logs(Orderlog)
 
-                                lowest_strike = min(params['putstrike'])
-                                new_strike = int(lowest_strike - params['STRIKE STEP'])
-                                params['putstrike'].append(new_strike)
-                                if params['ContractType'] == "MONTHLY":
-                                    symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
+                            lowest_strike = min(params['putstrike'])
+                            new_strike = int(lowest_strike - params['STRIKE STEP'])
+                            params['putstrike'].append(new_strike)
+                            if params['ContractType'] == "MONTHLY":
+                                symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
                                                                        ex=segment,
                                                                        ex_underlying_symbol=params['BaseSymBol'],
                                                                        strike=new_strike, opt_type="PE")
 
-                                if params['ContractType'] == "WEEKLY":
-                                    symbol = weekly_exp_contract_date(date_str=params['TradeExp'], ex=segment,
+                            if params['ContractType'] == "WEEKLY":
+                                symbol = weekly_exp_contract_date(date_str=params['TradeExp'], ex=segment,
                                                                       ex_underlying_symbol=params['BaseSymBol'],
                                                                       strike=new_strike,
                                                                       opt_type="PE")
-                                if params['LmtPercentage'] == 0:
-                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                            if params['LmtPercentage'] == 0:
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                     side=-1, product=params['ProductType'],limit=0,type=2)
 
-                                if params['LmtPercentage'] > 0:
-                                    lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
-                                    percentage_value=calculate_percentage(lp,params['LmtPercentage'])
-                                    ep=lp-percentage_value
-                                    ep = int(ep) + 0.05
-                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                            if params['LmtPercentage'] > 0:
+                                lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
+                                percentage_value=calculate_percentage(lp,params['LmtPercentage'])
+                                ep=lp-percentage_value
+                                ep = int(ep) +params['Tick']
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                         side=-1, product=params['ProductType'], type=1,
                                                                         limit=ep)
 
@@ -686,34 +688,34 @@ def main_strategy():
                                 #                           order_typ="MARKET", price=0, username=Algofoxid,
                                 #                           password=Algofoxpassword, role=role,
                                 #                           trigger=None, sll_price=None)
-                                Orderlog = f"{timestamp} Downside level @ {params['SYMBOL']} trade: {params['TYPE']} entry put strike  {symbol}"
-                                print(Orderlog)
-                                write_to_order_logs(Orderlog)
+                            Orderlog = f"{timestamp} Downside level @ {params['SYMBOL']} trade: {params['TYPE']} entry put strike  {symbol}"
+                            print(Orderlog)
+                            write_to_order_logs(Orderlog)
 
-                            if params['TYPE'] == 'BUY':
+                        if params['TYPE'] == 'BUY':
                                 # exit pos logic
-                                strike= max(params['callstrike'])
-                                if params['ContractType'] == "MONTHLY":
-                                    symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
+                            strike= max(params['callstrike'])
+                            if params['ContractType'] == "MONTHLY":
+                                symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
                                                                        ex=segment,
                                                                        ex_underlying_symbol=params['BaseSymBol'],
                                                                        strike=strike, opt_type="CE")
 
-                                if params['ContractType'] == "WEEKLY":
-                                    symbol = weekly_exp_contract_date(date_str=params['TradeExp'], ex=segment,
+                            if params['ContractType'] == "WEEKLY":
+                                symbol = weekly_exp_contract_date(date_str=params['TradeExp'], ex=segment,
                                                                       ex_underlying_symbol=params['BaseSymBol'],
                                                                       strike=strike,
                                                                       opt_type="CE")
-                                if params['LmtPercentage'] == 0:
-                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                            if params['LmtPercentage'] == 0:
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                     side=-1, product=params['ProductType'],limit=0,type=2)
 
-                                if params['LmtPercentage'] > 0:
-                                    lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
-                                    percentage_value=calculate_percentage(lp,params['LmtPercentage'])
-                                    ep=lp-percentage_value
-                                    ep = int(ep) + 0.05
-                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                            if params['LmtPercentage'] > 0:
+                                lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
+                                percentage_value=calculate_percentage(lp,params['LmtPercentage'])
+                                ep=lp-percentage_value
+                                ep = int(ep) +params['Tick']
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                         side=-1, product=params['ProductType'], type=1,
                                                                         limit=ep)
 
@@ -724,32 +726,32 @@ def main_strategy():
                                 #                               order_typ="MARKET", price=0, username=Algofoxid,
                                 #                               password=Algofoxpassword, role=role,
                                 #                               trigger=None, sll_price=None)
-                                params['callstrike'].remove(strike)
-                                Orderlog = f"{timestamp} Downside level @ {params['SYMBOL']} trade: {params['TYPE']} exit call strike  {symbol}"
-                                print(Orderlog)
-                                write_to_order_logs(Orderlog)
+                            params['callstrike'].remove(strike)
+                            Orderlog = f"{timestamp} Downside level @ {params['SYMBOL']} trade: {params['TYPE']} exit call strike  {symbol}"
+                            print(Orderlog)
+                            write_to_order_logs(Orderlog)
 
-                                strike = max(params['putstrike'])
-                                if params['ContractType'] == "MONTHLY":
-                                    symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
+                            strike = max(params['putstrike'])
+                            if params['ContractType'] == "MONTHLY":
+                                symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
                                                                        ex=segment,
                                                                        ex_underlying_symbol=params['BaseSymBol'],
                                                                        strike=strike, opt_type="PE")
 
-                                if params['ContractType'] == "WEEKLY":
-                                    symbol = weekly_exp_contract_date(date_str=params['TradeExp'], ex=segment,
+                            if params['ContractType'] == "WEEKLY":
+                                symbol = weekly_exp_contract_date(date_str=params['TradeExp'], ex=segment,
                                                                       ex_underlying_symbol=params['BaseSymBol'],
                                                                       strike=strike,
                                                                       opt_type="PE")
-                                if params['LmtPercentage'] == 0:
-                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                            if params['LmtPercentage'] == 0:
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                     side=-1, product=params['ProductType'],limit=0,type=2)
-                                if params['LmtPercentage'] > 0:
-                                    lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
-                                    percentage_value=calculate_percentage(lp,params['LmtPercentage'])
-                                    ep=lp-percentage_value
-                                    ep = int(ep) + 0.05
-                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                            if params['LmtPercentage'] > 0:
+                                lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
+                                percentage_value=calculate_percentage(lp,params['LmtPercentage'])
+                                ep=lp-percentage_value
+                                ep = int(ep) +params['Tick']
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                         side=-1, product=params['ProductType'], type=1,
                                                                         limit=ep)
                                 # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|PE"
@@ -759,34 +761,34 @@ def main_strategy():
                                 #                            order_typ="MARKET", price=0, username=Algofoxid,
                                 #                            password=Algofoxpassword, role=role,
                                 #                            trigger=None, sll_price=None)
-                                params['putstrike'].remove(strike)
-                                Orderlog = f"{timestamp} Downside level @ {params['SYMBOL']} trade: {params['TYPE']} exit put strike  {symbol}"
-                                print(Orderlog)
-                                write_to_order_logs(Orderlog)
-                                # opening pos logic
-                                lowest_strike = min(params['callstrike'])
-                                new_strike = lowest_strike - params['STRIKE STEP']
-                                params['callstrike'].append(new_strike)
-                                if params['ContractType'] == "MONTHLY":
-                                    symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
+                            params['putstrike'].remove(strike)
+                            Orderlog = f"{timestamp} Downside level @ {params['SYMBOL']} trade: {params['TYPE']} exit put strike  {symbol}"
+                            print(Orderlog)
+                            write_to_order_logs(Orderlog)
+                            # opening pos logic
+                            lowest_strike = min(params['callstrike'])
+                            new_strike = lowest_strike - params['STRIKE STEP']
+                            params['callstrike'].append(new_strike)
+                            if params['ContractType'] == "MONTHLY":
+                                symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
                                                                        ex=segment,
                                                                        ex_underlying_symbol=params['BaseSymBol'],
                                                                        strike=new_strike, opt_type="CE")
 
-                                if params['ContractType'] == "WEEKLY":
-                                    symbol = weekly_exp_contract_date(date_str=params['TradeExp'], ex=segment,
+                            if params['ContractType'] == "WEEKLY":
+                                symbol = weekly_exp_contract_date(date_str=params['TradeExp'], ex=segment,
                                                                       ex_underlying_symbol=params['BaseSymBol'],
                                                                       strike=new_strike,
                                                                       opt_type="CE")
-                                if params['LmtPercentage'] == 0:
-                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                            if params['LmtPercentage'] == 0:
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                     side=1, product=params['ProductType'],limit=0,type=2)
-                                if params['LmtPercentage'] > 0:
-                                    lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
-                                    percentage_value=calculate_percentage(lp,params['LmtPercentage'])
-                                    ep=lp+percentage_value
-                                    ep = int(ep) + 0.05
-                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                            if params['LmtPercentage'] > 0:
+                                lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
+                                percentage_value=calculate_percentage(lp,params['LmtPercentage'])
+                                ep=lp+percentage_value
+                                ep = int(ep) +params['Tick']
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                         side=1, product=params['ProductType'], type=1,
                                                                         limit=ep)
 
@@ -798,32 +800,32 @@ def main_strategy():
                                 #                           order_typ="MARKET", price=0, username=Algofoxid,
                                 #                           password=Algofoxpassword, role=role,
                                 #                           trigger=None, sll_price=None)
-                                Orderlog = f"{timestamp} Downside level @ {params['SYMBOL']} trade: {params['TYPE']} entry call strike  {symbol}"
-                                print(Orderlog)
-                                write_to_order_logs(Orderlog)
-                                lowest_strike = min(params['putstrike'])
-                                new_strike = int(lowest_strike - params['STRIKE STEP'])
-                                params['putstrike'].append(new_strike)
-                                if params['ContractType'] == "MONTHLY":
-                                    symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
+                            Orderlog = f"{timestamp} Downside level @ {params['SYMBOL']} trade: {params['TYPE']} entry call strike  {symbol}"
+                            print(Orderlog)
+                            write_to_order_logs(Orderlog)
+                            lowest_strike = min(params['putstrike'])
+                            new_strike = int(lowest_strike - params['STRIKE STEP'])
+                            params['putstrike'].append(new_strike)
+                            if params['ContractType'] == "MONTHLY":
+                                symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
                                                                        ex=segment,
                                                                        ex_underlying_symbol=params['BaseSymBol'],
                                                                        strike=new_strike, opt_type="PE")
 
-                                if params['ContractType'] == "WEEKLY":
-                                    symbol = weekly_exp_contract_date(date_str=params['TradeExp'], ex=segment,
+                            if params['ContractType'] == "WEEKLY":
+                                symbol = weekly_exp_contract_date(date_str=params['TradeExp'], ex=segment,
                                                                       ex_underlying_symbol=params['BaseSymBol'],
                                                                       strike=new_strike,
                                                                       opt_type="PE")
-                                if params['LmtPercentage'] == 0:
-                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                            if params['LmtPercentage'] == 0:
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                     side=1, product=params['ProductType'],limit=0,type=2)
-                                if params['LmtPercentage'] > 0:
-                                    lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
-                                    percentage_value=calculate_percentage(lp,params['LmtPercentage'])
-                                    ep=lp+percentage_value
-                                    ep = int(ep) + 0.05
-                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                            if params['LmtPercentage'] > 0:
+                                lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
+                                percentage_value=calculate_percentage(lp,params['LmtPercentage'])
+                                ep=lp+percentage_value
+                                ep = int(ep) +params['Tick']
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                         side=1, product=params['ProductType'], type=1,
                                                                         limit=ep)
                                 # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{new_strike}|PE"
@@ -837,40 +839,42 @@ def main_strategy():
                                 print(Orderlog)
                                 write_to_order_logs(Orderlog)
 
-                        if (
-                                params['ltp']>=params['UpLevel'] and
-                                params['UpLevel'] is not None and
-                                params['InitialLevelRun'] is not None and
-                                params['TradeCount']<params['CycleCount']
-                            ):
-
-                            params['Downlevel'] = params['UpLevel'] - params['STRIKE STEP']
-                            params['UpLevel'] = params['UpLevel'] + params['STRIKE STEP']
-                            params['PrevLevel']='UpLevel'
-                            params['TradeCount'] = params['TradeCount'] + 1
-                            if params['TYPE'] == 'SHORT':
+                    if (
+                        float(params['ltp'])>=float(params['UpLevel']) and
+                        params['UpLevel'] is not None and
+                        params['InitialLevelRun']=="DONE" and
+                        int(params['TradeCount'] )< int(params['CycleCount'])
+                    ):
+                        Orderlog = f"{timestamp} Upside level @ {params['SYMBOL']} "
+                        print(Orderlog)
+                        write_to_order_logs(Orderlog)
+                        params['Downlevel'] = params['UpLevel'] - params['STRIKE STEP']
+                        params['UpLevel'] = params['UpLevel'] + params['STRIKE STEP']
+                        params['PrevLevel']='UpLevel'
+                        params['TradeCount'] = params['TradeCount'] + 1
+                        if params['TYPE'] == 'SHORT':
                                 # exit pos logic
-                                strike = min(params['callstrike'])
-                                if params['ContractType'] == "MONTHLY":
-                                    symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
+                            strike = min(params['callstrike'])
+                            if params['ContractType'] == "MONTHLY":
+                                symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
                                                                        ex=segment,
                                                                        ex_underlying_symbol=params['BaseSymBol'],
                                                                        strike=strike, opt_type="CE")
 
-                                if params['ContractType'] == "WEEKLY":
-                                    symbol = weekly_exp_contract_date(date_str=params['TradeExp'], ex=segment,
+                            if params['ContractType'] == "WEEKLY":
+                                symbol = weekly_exp_contract_date(date_str=params['TradeExp'], ex=segment,
                                                                       ex_underlying_symbol=params['BaseSymBol'],
                                                                       strike=strike,
                                                                       opt_type="CE")
-                                if params['LmtPercentage'] == 0:
-                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                            if params['LmtPercentage'] == 0:
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                     side=1, product=params['ProductType'],limit=0,type=2)
-                                if params['LmtPercentage'] > 0:
-                                    lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
-                                    percentage_value=calculate_percentage(lp,params['LmtPercentage'])
-                                    ep=lp+percentage_value
-                                    ep = int(ep) + 0.05
-                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                            if params['LmtPercentage'] > 0:
+                                lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
+                                percentage_value=calculate_percentage(lp,params['LmtPercentage'])
+                                ep=lp+percentage_value
+                                ep = int(ep) +params['Tick']
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                         side=1, product=params['ProductType'], type=1,
                                                                         limit=ep)
                                 # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|CE"
@@ -880,32 +884,32 @@ def main_strategy():
                                 #                            order_typ="MARKET", price=0, username=Algofoxid,
                                 #                            password=Algofoxpassword, role=role,
                                 #                            trigger=None, sll_price=None)
-                                params['callstrike'].remove(strike)
-                                Orderlog = f"{timestamp} Upside level @ {params['SYMBOL']} trade: {params['TYPE']} exit call strike  {symbol}"
-                                print(Orderlog)
-                                write_to_order_logs(Orderlog)
+                            params['callstrike'].remove(strike)
+                            Orderlog = f"{timestamp} Upside level @ {params['SYMBOL']} trade: {params['TYPE']} exit call strike  {symbol}"
+                            print(Orderlog)
+                            write_to_order_logs(Orderlog)
 
-                                strike = min(params['putstrike'])
-                                if params['ContractType'] == "MONTHLY":
-                                    symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
+                            strike = min(params['putstrike'])
+                            if params['ContractType'] == "MONTHLY":
+                                symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
                                                                        ex=segment,
                                                                        ex_underlying_symbol=params['BaseSymBol'],
                                                                        strike=strike, opt_type="PE")
 
-                                if params['ContractType'] == "WEEKLY":
-                                    symbol = weekly_exp_contract_date(date_str=params['TradeExp'], ex=segment,
+                            if params['ContractType'] == "WEEKLY":
+                                symbol = weekly_exp_contract_date(date_str=params['TradeExp'], ex=segment,
                                                                       ex_underlying_symbol=params['BaseSymBol'],
                                                                       strike=strike,
                                                                       opt_type="PE")
-                                if params['LmtPercentage'] == 0:
-                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                            if params['LmtPercentage'] == 0:
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                     side=1, product=params['ProductType'],limit=0,type=2)
-                                if params['LmtPercentage'] > 0:
-                                    lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
-                                    percentage_value=calculate_percentage(lp,params['LmtPercentage'])
-                                    ep=lp+percentage_value
-                                    ep = int(ep) + 0.05
-                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                            if params['LmtPercentage'] > 0:
+                                lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
+                                percentage_value=calculate_percentage(lp,params['LmtPercentage'])
+                                ep=lp+percentage_value
+                                ep = int(ep) +params['Tick']
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                         side=1, product=params['ProductType'], type=1,
                                                                         limit=ep)
                                 # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|PE"
@@ -915,34 +919,34 @@ def main_strategy():
                                 #                            order_typ="MARKET", price=0, username=Algofoxid,
                                 #                            password=Algofoxpassword, role=role,
                                 #                            trigger=None, sll_price=None)
-                                params['putstrike'].remove(strike)
-                                Orderlog = f"{timestamp} Upside level @ {params['SYMBOL']} trade: {params['TYPE']} exit put strike  {symbol}"
-                                print(Orderlog)
-                                write_to_order_logs(Orderlog)
+                            params['putstrike'].remove(strike)
+                            Orderlog = f"{timestamp} Upside level @ {params['SYMBOL']} trade: {params['TYPE']} exit put strike  {symbol}"
+                            print(Orderlog)
+                            write_to_order_logs(Orderlog)
                                 # opening pos logic
-                                highest_strike = max(params['callstrike'])
-                                new_strike = highest_strike + params['STRIKE STEP']
-                                params['callstrike'].append(new_strike)
-                                if params['ContractType'] == "MONTHLY":
-                                    symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
+                            highest_strike = max(params['callstrike'])
+                            new_strike = highest_strike + params['STRIKE STEP']
+                            params['callstrike'].append(new_strike)
+                            if params['ContractType'] == "MONTHLY":
+                                symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
                                                                        ex=segment,
                                                                        ex_underlying_symbol=params['BaseSymBol'],
                                                                        strike=new_strike, opt_type="CE")
 
-                                if params['ContractType'] == "WEEKLY":
-                                    symbol = weekly_exp_contract_date(date_str=params['TradeExp'], ex=segment,
+                            if params['ContractType'] == "WEEKLY":
+                                symbol = weekly_exp_contract_date(date_str=params['TradeExp'], ex=segment,
                                                                       ex_underlying_symbol=params['BaseSymBol'],
                                                                       strike=new_strike,
                                                                       opt_type="CE")
-                                if params['LmtPercentage'] == 0:
-                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                            if params['LmtPercentage'] == 0:
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                     side=-1, product=params['ProductType'],limit=0,type=2)
-                                if params['LmtPercentage'] > 0:
-                                    lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
-                                    percentage_value=calculate_percentage(lp,params['LmtPercentage'])
-                                    ep=lp-percentage_value
-                                    ep = int(ep) + 0.05
-                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                            if params['LmtPercentage'] > 0:
+                                lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
+                                percentage_value=calculate_percentage(lp,params['LmtPercentage'])
+                                ep=lp-percentage_value
+                                ep = int(ep)+params['Tick']
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                         side=-1, product=params['ProductType'], type=1,
                                                                         limit=ep)
                                 # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{new_strike}|CE"
@@ -952,33 +956,33 @@ def main_strategy():
                                 #                           order_typ="MARKET", price=0, username=Algofoxid,
                                 #                           password=Algofoxpassword, role=role,
                                 #                           trigger=None, sll_price=None)
-                                Orderlog = f"{timestamp} Upside level @ {params['SYMBOL']} trade: {params['TYPE']} entry call strike  {symbol}"
-                                print(Orderlog)
-                                write_to_order_logs(Orderlog)
+                            Orderlog = f"{timestamp} Upside level @ {params['SYMBOL']} trade: {params['TYPE']} entry call strike  {symbol}"
+                            print(Orderlog)
+                            write_to_order_logs(Orderlog)
 
-                                highest_strike = max(params['putstrike'])
-                                new_strike = int(highest_strike + params['STRIKE STEP'])
-                                params['putstrike'].append(new_strike)
-                                if params['ContractType'] == "MONTHLY":
-                                    symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
+                            highest_strike = max(params['putstrike'])
+                            new_strike = int(highest_strike + params['STRIKE STEP'])
+                            params['putstrike'].append(new_strike)
+                            if params['ContractType'] == "MONTHLY":
+                                symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
                                                                        ex=segment,
                                                                        ex_underlying_symbol=params['BaseSymBol'],
                                                                        strike=new_strike, opt_type="PE")
 
-                                if params['ContractType'] == "WEEKLY":
-                                    symbol = weekly_exp_contract_date(date_str=params['TradeExp'], ex=segment,
+                            if params['ContractType'] == "WEEKLY":
+                                symbol = weekly_exp_contract_date(date_str=params['TradeExp'], ex=segment,
                                                                       ex_underlying_symbol=params['BaseSymBol'],
                                                                       strike=new_strike,
                                                                       opt_type="PE")
-                                if params['LmtPercentage'] == 0:
-                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                            if params['LmtPercentage'] == 0:
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                     side=-1, product=params['ProductType'],limit=0,type=2)
-                                if params['LmtPercentage'] > 0:
-                                    lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
-                                    percentage_value=calculate_percentage(lp,params['LmtPercentage'])
-                                    ep=lp-percentage_value
-                                    ep = int(ep) + 0.05
-                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                            if params['LmtPercentage'] > 0:
+                                lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
+                                percentage_value=calculate_percentage(lp,params['LmtPercentage'])
+                                ep=lp-percentage_value
+                                ep = int(ep)+params['Tick']
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                         side=-1, product=params['ProductType'], type=1,
                                                                         limit=ep)
                                 # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{new_strike}|PE"
@@ -988,33 +992,33 @@ def main_strategy():
                                 #                           order_typ="MARKET", price=0, username=Algofoxid,
                                 #                           password=Algofoxpassword, role=role,
                                 #                           trigger=None, sll_price=None)
-                                Orderlog = f"{timestamp} Upside level @ {params['SYMBOL']} trade: {params['TYPE']} entry put strike  {symbol}"
-                                print(Orderlog)
-                                write_to_order_logs(Orderlog)
+                            Orderlog = f"{timestamp} Upside level @ {params['SYMBOL']} trade: {params['TYPE']} entry put strike  {symbol}"
+                            print(Orderlog)
+                            write_to_order_logs(Orderlog)
 
-                            if params['TYPE'] == 'BUY':
+                        if params['TYPE'] == 'BUY':
                                 # exit pos logic
-                                strike= min(params['callstrike'])
-                                if params['ContractType'] == "MONTHLY":
-                                    symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
+                            strike= min(params['callstrike'])
+                            if params['ContractType'] == "MONTHLY":
+                                symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
                                                                        ex=segment,
                                                                        ex_underlying_symbol=params['BaseSymBol'],
                                                                        strike=strike, opt_type="CE")
 
-                                if params['ContractType'] == "WEEKLY":
-                                    symbol = weekly_exp_contract_date(date_str=params['TradeExp'], ex=segment,
+                            if params['ContractType'] == "WEEKLY":
+                                symbol = weekly_exp_contract_date(date_str=params['TradeExp'], ex=segment,
                                                                       ex_underlying_symbol=params['BaseSymBol'],
                                                                       strike=strike,
                                                                       opt_type="CE")
-                                if params['LmtPercentage'] == 0:
-                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                            if params['LmtPercentage'] == 0:
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                     side=-1, product=params['ProductType'],limit=0,type=2)
-                                if params['LmtPercentage'] > 0:
-                                    lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
-                                    percentage_value=calculate_percentage(lp,params['LmtPercentage'])
-                                    ep=lp-percentage_value
-                                    ep = int(ep) + 0.05
-                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                            if params['LmtPercentage'] > 0:
+                                lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
+                                percentage_value=calculate_percentage(lp,params['LmtPercentage'])
+                                ep=lp-percentage_value
+                                ep = int(ep) +params['Tick']
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                         side=-1, product=params['ProductType'], type=1,
                                                                         limit=ep)
                                 # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|CE"
@@ -1024,33 +1028,33 @@ def main_strategy():
                                 #                               order_typ="MARKET", price=0, username=Algofoxid,
                                 #                               password=Algofoxpassword, role=role,
                                 #                               trigger=None, sll_price=None)
-                                params['callstrike'].remove(strike)
-                                Orderlog = f"{timestamp} Upside level @ {params['SYMBOL']} trade: {params['TYPE']} exit call strike  {symbol}"
-                                print(Orderlog)
-                                write_to_order_logs(Orderlog)
+                            params['callstrike'].remove(strike)
+                            Orderlog = f"{timestamp} Upside level @ {params['SYMBOL']} trade: {params['TYPE']} exit call strike  {symbol}"
+                            print(Orderlog)
+                            write_to_order_logs(Orderlog)
 
-                                strike = min(params['putstrike'])
-                                if params['ContractType'] == "MONTHLY":
-                                    symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
+                            strike = min(params['putstrike'])
+                            if params['ContractType'] == "MONTHLY":
+                                symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
                                                                        ex=segment,
                                                                        ex_underlying_symbol=params['BaseSymBol'],
                                                                        strike=strike, opt_type="PE")
 
-                                if params['ContractType'] == "WEEKLY":
-                                    symbol = weekly_exp_contract_date(date_str=params['TradeExp'], ex=segment,
+                            if params['ContractType'] == "WEEKLY":
+                                symbol = weekly_exp_contract_date(date_str=params['TradeExp'], ex=segment,
                                                                       ex_underlying_symbol=params['BaseSymBol'],
                                                                       strike=strike,
                                                                       opt_type="PE")
-                                if params['LmtPercentage'] == 0:
-                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                            if params['LmtPercentage'] == 0:
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                     side=-1, product=params['ProductType'],limit=0,type=2)
 
-                                if params['LmtPercentage'] > 0:
-                                    lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
-                                    percentage_value=calculate_percentage(lp,params['LmtPercentage'])
-                                    ep=lp-percentage_value
-                                    ep = int(ep) + 0.05
-                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                            if params['LmtPercentage'] > 0:
+                                lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
+                                percentage_value=calculate_percentage(lp,params['LmtPercentage'])
+                                ep=lp-percentage_value
+                                ep = int(ep) +params['Tick']
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                         side=-1, product=params['ProductType'], type=1,
                                                                         limit=ep)
                                 # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{strike}|PE"
@@ -1060,34 +1064,34 @@ def main_strategy():
                                 #                            order_typ="MARKET", price=0, username=Algofoxid,
                                 #                            password=Algofoxpassword, role=role,
                                 #                            trigger=None, sll_price=None)
-                                params['putstrike'].remove(strike)
-                                Orderlog = f"{timestamp} Upside level @ {params['SYMBOL']} trade: {params['TYPE']} exit put strike  {symbol}"
-                                print(Orderlog)
-                                write_to_order_logs(Orderlog)
+                            params['putstrike'].remove(strike)
+                            Orderlog = f"{timestamp} Upside level @ {params['SYMBOL']} trade: {params['TYPE']} exit put strike  {symbol}"
+                            print(Orderlog)
+                            write_to_order_logs(Orderlog)
                                 # opening pos logic
-                                highest_strike = max(params['callstrike'])
-                                new_strike = highest_strike + params['STRIKE STEP']
-                                params['callstrike'].append(new_strike)
-                                if params['ContractType'] == "MONTHLY":
-                                    symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
+                            highest_strike = max(params['callstrike'])
+                            new_strike = highest_strike + params['STRIKE STEP']
+                            params['callstrike'].append(new_strike)
+                            if params['ContractType'] == "MONTHLY":
+                                symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
                                                                        ex=segment,
                                                                        ex_underlying_symbol=params['BaseSymBol'],
                                                                        strike=new_strike, opt_type="CE")
 
-                                if params['ContractType'] == "WEEKLY":
-                                    symbol = weekly_exp_contract_date(date_str=params['TradeExp'], ex=segment,
+                            if params['ContractType'] == "WEEKLY":
+                                symbol = weekly_exp_contract_date(date_str=params['TradeExp'], ex=segment,
                                                                       ex_underlying_symbol=params['BaseSymBol'],
                                                                       strike=new_strike,
                                                                       opt_type="CE")
-                                if params['LmtPercentage'] == 0:
-                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                            if params['LmtPercentage'] == 0:
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                     side=1, product=params['ProductType'],limit=0,type=2)
-                                if params['LmtPercentage'] > 0:
-                                    lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
-                                    percentage_value=calculate_percentage(lp,params['LmtPercentage'])
-                                    ep=lp+percentage_value
-                                    ep = int(ep) + 0.05
-                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                            if params['LmtPercentage'] > 0:
+                                lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
+                                percentage_value=calculate_percentage(lp,params['LmtPercentage'])
+                                ep=lp+percentage_value
+                                ep = int(ep) +params['Tick']
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                         side=1, product=params['ProductType'], type=1,
                                                                         limit=ep)
                                 # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{new_strike}|CE"
@@ -1097,34 +1101,34 @@ def main_strategy():
                                 #                           order_typ="MARKET", price=0, username=Algofoxid,
                                 #                           password=Algofoxpassword, role=role,
                                 #                           trigger=None, sll_price=None)
-                                Orderlog = f"{timestamp} Upside level @ {params['SYMBOL']} trade: {params['TYPE']} entry call strike  {symbol}"
-                                print(Orderlog)
-                                write_to_order_logs(Orderlog)
+                            Orderlog = f"{timestamp} Upside level @ {params['SYMBOL']} trade: {params['TYPE']} entry call strike  {symbol}"
+                            print(Orderlog)
+                            write_to_order_logs(Orderlog)
 
-                                highest_strike = max(params['putstrike'])
-                                new_strike = int(highest_strike + params['STRIKE STEP'])
-                                params['putstrike'].append(new_strike)
+                            highest_strike = max(params['putstrike'])
+                            new_strike = int(highest_strike + params['STRIKE STEP'])
+                            params['putstrike'].append(new_strike)
 
-                                if params['ContractType'] == "MONTHLY":
-                                    symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
+                            if params['ContractType'] == "MONTHLY":
+                                symbol = monthly_exp_contract_date(date_str=params['TradeExp'],
                                                                        ex=segment,
                                                                        ex_underlying_symbol=params['BaseSymBol'],
                                                                        strike=new_strike, opt_type="PE")
 
-                                if params['ContractType'] == "WEEKLY":
-                                    symbol = weekly_exp_contract_date(date_str=params['TradeExp'], ex=segment,
+                            if params['ContractType'] == "WEEKLY":
+                                symbol = weekly_exp_contract_date(date_str=params['TradeExp'], ex=segment,
                                                                       ex_underlying_symbol=params['BaseSymBol'],
                                                                       strike=new_strike,
                                                                       opt_type="PE")
-                                if params['LmtPercentage'] == 0:
-                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                            if params['LmtPercentage'] == 0:
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                     side=1, product=params['ProductType'],limit=0,type=2)
-                                if params['LmtPercentage'] > 0:
-                                    lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
-                                    percentage_value=calculate_percentage(lp,params['LmtPercentage'])
-                                    ep=lp+percentage_value
-                                    ep = int(ep) + 0.05
-                                    FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
+                            if params['LmtPercentage'] > 0:
+                                lp = next((item['v']['lp'] for item in FyresIntegration.fyres_quote_ltp(symbol).get('d', []) if 'v' in item and 'lp' in item['v']), None)
+                                percentage_value=calculate_percentage(lp,params['LmtPercentage'])
+                                ep=lp+percentage_value
+                                ep = int(ep) +params['Tick']
+                                FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                         side=1, product=params['ProductType'], type=1,
                                                                         limit=ep)
                                 # symbol = f"{params['SYMBOL']}|{params['trade_exp']}|{new_strike}|PE"
@@ -1134,16 +1138,16 @@ def main_strategy():
                                 #                           order_typ="MARKET", price=0, username=Algofoxid,
                                 #                           password=Algofoxpassword, role=role,
                                 #                           trigger=None, sll_price=None)
-                                Orderlog = f"{timestamp} Upside level @ {params['SYMBOL']} trade: {params['TYPE']} entry put strike  {symbol}"
-                                print(Orderlog)
-                                write_to_order_logs(Orderlog)\
+                            Orderlog = f"{timestamp} Upside level @ {params['SYMBOL']} trade: {params['TYPE']} entry put strike  {symbol}"
+                            print(Orderlog)
+                            write_to_order_logs(Orderlog)\
 
-                    print(f"{timestamp} {params['SYMBOL']}: {ltp} : InitialAtm: {params['InitialAtm']}: UpLevel: {params['UpLevel']}: Downlevel: {params['Downlevel']},"
-                                f"InitialLevelRun:{params['InitialLevelRun']}, callstrike: {params['callstrike']}, putstrike: {params['putstrike']}")
+                print(f"{timestamp} {params['SYMBOL']}: {ltp} : InitialAtm: {params['InitialAtm']}: UpLevel: {params['UpLevel']}: Downlevel: {params['Downlevel']},"
+                                f"InitialLevelRun:{params['InitialLevelRun']}, callstrike: {params['callstrike']}, putstrike: {params['putstrike']}, TradeCount={params['TradeCount']}, CycleCount={params['CycleCount']}")
 
 
 
-                if params['TimeBasedExit'] == "TAKEEXIT" and params['TradeCount']==params['CycleCount']:
+                if params['TimeBasedExit'] == "TAKEEXIT" and int(params['TradeCount'])==int(params['CycleCount']):
                     params['TimeBasedExit'] = "EXITDONE"
                     params['TradeCount']=params['CycleCount']+10
                     # Process each strike in callstrike list
@@ -1183,7 +1187,7 @@ def main_strategy():
                                     lp_value = symbol_to_lp[symbol]
                                     percentage_value = calculate_percentage(lp_value, params['LmtPercentage'])
                                     ep = lp_value - percentage_value
-                                    ep = int(ep) + 0.05
+                                    ep = int(ep)+params['Tick']
                                     FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                         side=-1, product=params['ProductType'], type=1,
                                                                         limit=ep)
@@ -1197,7 +1201,7 @@ def main_strategy():
                                     lp_value = symbol_to_lp[symbol]
                                     percentage_value = calculate_percentage(lp_value, params['LmtPercentage'])
                                     ep = lp_value + percentage_value
-                                    ep = int(ep) + 0.05
+                                    ep = int(ep)+params['Tick']
                                     FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                         side=1, product=params['ProductType'], type=1,
                                                                         limit=ep)
@@ -1239,7 +1243,7 @@ def main_strategy():
                                     lp_value = symbol_to_lp[symbol]
                                     percentage_value = calculate_percentage(lp_value, params['LmtPercentage'])
                                     ep = lp_value - percentage_value
-                                    ep = int(ep) + 0.05
+                                    ep = int(ep)+params['Tick']
                                     FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                         side=-1, product=params['ProductType'], type=1,
                                                                         limit=ep)
@@ -1254,7 +1258,7 @@ def main_strategy():
                                     lp_value = symbol_to_lp[symbol]
                                     percentage_value = calculate_percentage(lp_value, params['LmtPercentage'])
                                     ep = lp_value + percentage_value
-                                    ep = int(ep) + 0.05
+                                    ep = int(ep) +params['Tick']
                                     FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                         side=1, product=params['ProductType'], type=1,
                                                                         limit=ep)
@@ -1289,25 +1293,23 @@ def main_strategy():
                                 opt_type="CE"  # Assuming CE for call strikes
                             )
                         # Log the exit and execute the order
-
+                        Orderlog = f"{timestamp} Time-based exit for call strike {symbol}"
+                        print(Orderlog)
+                        write_to_order_logs(Orderlog)
                         if params['TYPE'] == 'BUY':
                             if params['LmtPercentage'] == 0:
                                 FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"], side=-1,
                                                             product=params['ProductType'],limit=0,type=2)
-                                ep=0
 
                             if params['LmtPercentage'] > 0:
                                 if symbol in symbol_to_lp:
                                     lp_value = symbol_to_lp[symbol]
                                     percentage_value = calculate_percentage(lp_value, params['LmtPercentage'])
                                     ep = lp_value - percentage_value
-                                    ep = int(ep) + 0.05
+                                    ep = int(ep) +params['Tick']
                                     FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                     side=-1, product=params['ProductType'], type=1,
                                                                     limit=ep)
-                            Orderlog = f"{timestamp} Time-based exit for call strike {symbol}, ep= {ep}"
-                            print(Orderlog)
-                            write_to_order_logs(Orderlog)
 
                         if params['TYPE'] == 'SHORT':
                             if params['LmtPercentage'] == 0:
@@ -1318,7 +1320,7 @@ def main_strategy():
                                     lp_value = symbol_to_lp[symbol]
                                     percentage_value = calculate_percentage(lp_value, params['LmtPercentage'])
                                     ep = lp_value + percentage_value
-                                    ep = int(ep) + 0.05
+                                    ep = int(ep) +params['Tick']
                                     FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                     side=1, product=params['ProductType'], type=1,
                                                                     limit=ep)
@@ -1347,18 +1349,19 @@ def main_strategy():
                                 opt_type="PE"  # Assuming PE for put strikes
                             )
                         # Log the exit and execute the order
-
+                        Orderlog = f"{timestamp} Time-based exit for put strike {symbol}"
+                        print(Orderlog)
+                        write_to_order_logs(Orderlog)
                         if params['TYPE'] == 'BUY':
                             if params['LmtPercentage'] == 0:
                                 FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"], side=-1,
                                                                 product=params['ProductType'],limit=0,type=2)
-                                ep = 0
                             if params['LmtPercentage'] > 0:
                                 if symbol in symbol_to_lp:
                                     lp_value = symbol_to_lp[symbol]
                                     percentage_value = calculate_percentage(lp_value, params['LmtPercentage'])
                                     ep = lp_value - percentage_value
-                                    ep = int(ep) + 0.05
+                                    ep = int(ep) +params['Tick']
                                     FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                         side=-1, product=params['ProductType'], type=1,
                                                                         limit=ep)
@@ -1367,20 +1370,15 @@ def main_strategy():
                             if params['LmtPercentage'] == 0:
                                 FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"], side=1,
                                                                 product=params['ProductType'],limit=0,type=2)
-                                ep=0
                             if params['LmtPercentage'] > 0:
                                 if symbol in symbol_to_lp:
                                     lp_value = symbol_to_lp[symbol]
                                     percentage_value = calculate_percentage(lp_value, params['LmtPercentage'])
                                     ep = lp_value + percentage_value
-                                    ep = int(ep) + 0.05
+                                    ep = int(ep) +params['Tick']
                                     FyresIntegration.fyers_single_order(symbol=symbol, qty=params["Quantity"],
                                                                         side=1, product=params['ProductType'], type=1,
                                                                         limit=ep)
-
-                        Orderlog = f"{timestamp} Time-based exit for put strike {symbol}, Price: {ep}"
-                        print(Orderlog)
-                        write_to_order_logs(Orderlog)
 
 
 
